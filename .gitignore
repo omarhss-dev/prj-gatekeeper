@@ -9,3 +9,4 @@ coverage/
 *.pem
 *.key
 .DS_Store
+.directory
