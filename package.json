@@ -1,5 +1,10 @@
 {
   "name": "gatekeeper",
   "private": true,
-  "workspaces": ["apps/*"]
+  "workspaces": [
+    "apps/*"
+  ],
+  "allowScripts": {
+    "lefthook@2.1.12": true
+  }
 }
