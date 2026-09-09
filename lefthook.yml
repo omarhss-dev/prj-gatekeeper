@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.{ts,tsx}"
+      run: npx eslint --config apps/api/eslint.config.mjs {staged_files} --max-warnings=0
+    format:
+      glob: "*.{ts,tsx,json,md}"
+      run: npx prettier --check {staged_files}
+    secrets:
+      run: gitleaks protect --staged --no-banner
+commit-msg:
+  commands:
+    conventional:
+      run: npx commitlint --edit {1}
