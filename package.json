@@ -1,5 +1,10 @@
 {
   "name": "gatekeeper",
   "private": true,
-  "workspaces": ["apps/*"]
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "postinstall": "npx lefthook install"
+  }
 }
