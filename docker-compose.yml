@@ -1,0 +1,51 @@
+
+
+
+
+services: 
+
+#----------------------postgres--------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT:-5432}:5432"                   #format complet est IP_hôte:port_hôte:port_conteneur
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gatekeeper_net
+
+#-----------------------------redis---------------------------------- 
+ 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped      
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gatekeeper_net
+
+
+
+
+
+networks:
+  gatekeeper_net:
+    driver: bridge
+
+
+
+volumes:
+  postgres_data:
