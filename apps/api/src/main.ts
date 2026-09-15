@@ -18,11 +18,17 @@ async function bootstrap(): Promise<void> {
   await app.listen(config.PORT);
 }
 
-bootstrap().catch((error: unknown) => {
+function reportStartupError(error: unknown): void {
+  /* eslint-disable no-console */
   if (error instanceof ConfigValidationError) {
-    console.error(error.message);
+    console.error(`Configuration invalide : ${error.message}`);
   } else {
     console.error("Échec du démarrage de l'application", error);
   }
+  /* eslint-enable no-console */
+}
+
+bootstrap().catch((error: unknown) => {
+  reportStartupError(error);
   process.exitCode = 1;
 });
