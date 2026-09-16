@@ -1,10 +1,5 @@
-
-
-
-
-services: 
-
-#----------------------postgres--------------------------------------
+services:
+  #----------------------postgres--------------------------------------
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -13,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "${DB_PORT:-5432}:5432"                   #format complet est IP_hôte:port_hôte:port_conteneur
+      - "${DB_PORT:-5432}:5432" #format complet est IP_hôte:port_hôte:port_conteneur
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,11 +19,11 @@ services:
     networks:
       - gatekeeper_net
 
-#-----------------------------redis---------------------------------- 
- 
+  #-----------------------------redis----------------------------------
+
   redis:
     image: redis:7-alpine
-    restart: unless-stopped      
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -37,15 +32,9 @@ services:
     networks:
       - gatekeeper_net
 
-
-
-
-
 networks:
   gatekeeper_net:
     driver: bridge
-
-
 
 volumes:
   postgres_data:

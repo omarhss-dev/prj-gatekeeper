@@ -6,8 +6,24 @@ const valid = {
 };
 
 describe('loadConfig', () => {
-  it('accepte une configuration valide et applique le défaut de PORT', () => {
-    expect(loadConfig(valid)).toEqual({ ...valid, PORT: 3000 });
+  it('accepte une configuration valide et applique le défaut de PORT et LOG_LEVEL', () => {
+    expect(loadConfig(valid)).toEqual({
+      ...valid,
+      PORT: 3000,
+      LOG_LEVEL: 'info',
+    });
+  });
+
+  it('lit LOG_LEVEL quand il est fourni', () => {
+    expect(loadConfig({ ...valid, LOG_LEVEL: 'debug' }).LOG_LEVEL).toBe(
+      'debug',
+    );
+  });
+
+  it('rejette un niveau inconnu de pino', () => {
+    expect(() => loadConfig({ ...valid, LOG_LEVEL: 'verbose' })).toThrow(
+      /LOG_LEVEL/,
+    );
   });
 
   it('rejette une chaîne vide, que le défaut ne protège pas', () => {

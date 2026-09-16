@@ -37,6 +37,10 @@ export const configSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
 
   DATABASE_URL: postgresUrl,
+
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+    .default('info'),
 });
 
 /** Une seule source de vérité : le schéma valide ET produit le type (ADR-009). */
