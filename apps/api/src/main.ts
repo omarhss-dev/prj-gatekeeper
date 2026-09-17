@@ -20,6 +20,9 @@ async function bootstrap(): Promise<void> {
 
   app.useLogger(app.get(Logger)); // Logger importé depuis 'nestjs-pino'
 
+  // Sans cet appel, SIGTERM tue le processus sans passer par les hooks :
+  // onApplicationShutdown (fermeture du pool) ne s'exécuterait jamais.
+  app.enableShutdownHooks();
   await app.listen(config.PORT);
 }
 

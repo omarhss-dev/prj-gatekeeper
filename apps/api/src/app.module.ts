@@ -4,7 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { APP_CONFIG } from './config/config.tokens';
 import { isValidCorrelationId } from './common/logging/correlation-id';
 import type { AppConfig } from './config/config.schema';
-
+import { DatabaseModule } from './database/database.module';
 @Module({})
 export class AppModule {
   static forRoot(config: AppConfig): DynamicModule {
@@ -38,6 +38,7 @@ export class AppModule {
                 : undefined,
           },
         }),
+        DatabaseModule.forRoot(config),
       ],
     };
   }
