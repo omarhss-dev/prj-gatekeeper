@@ -6,9 +6,9 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import type { Pool } from 'pg';
-import type { AppConfig } from '../config/config.schema';
-import { PG_POOL } from './database.tokens';
-import { createPool } from './pool';
+import type { AppConfig } from '../config/config.schema.js';
+import { PG_POOL } from './database.tokens.js';
+import { createPool } from './pool.js';
 
 @Module({})
 export class DatabaseModule implements OnApplicationShutdown {

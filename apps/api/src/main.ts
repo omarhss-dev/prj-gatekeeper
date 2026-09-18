@@ -6,8 +6,8 @@ import { config as loadDotenv } from 'dotenv';
 loadDotenv({ path: '../../.env' });
 
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { loadConfig, ConfigValidationError } from './config/load-config';
+import { AppModule } from './app.module.js';
+import { loadConfig, ConfigValidationError } from './config/load-config.js';
 import { Logger } from 'nestjs-pino';
 async function bootstrap(): Promise<void> {
   // Validation AVANT tout démarrage de Nest, dans ma portée de capture.

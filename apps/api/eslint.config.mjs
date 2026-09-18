@@ -8,7 +8,12 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          // jest.config.ts vit hors de include: ["src/**/*"], et l'y
+          // ajouter casserait la compilation (TS6059, cf. INC-003 :
+          // rootDir vaut ./src). Il est donc linté sans typage.
+          allowDefaultProject: ['jest.config.ts'],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },

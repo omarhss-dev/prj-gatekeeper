@@ -1,5 +1,6 @@
-import type { AppConfig } from '../config/config.schema';
-import { createPool } from './pool';
+import { jest } from '@jest/globals';
+import type { AppConfig } from '../config/config.schema.js';
+import { createPool } from './pool.js';
 
 const config: AppConfig = {
   NODE_ENV: 'test',

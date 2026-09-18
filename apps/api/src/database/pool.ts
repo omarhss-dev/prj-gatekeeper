@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import type { Logger } from '@nestjs/common';
-import type { AppConfig } from '../config/config.schema';
+import type { AppConfig } from '../config/config.schema.js';
 
 // Seules les méthodes réellement appelées : un test peut fournir un faux
 // sans cast. Ce n'est pas un port (ADR-010), juste un type minimal.
