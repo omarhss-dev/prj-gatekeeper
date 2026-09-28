@@ -1,4 +1,4 @@
-import { configSchema, type AppConfig } from './config.schema';
+import { configSchema, type AppConfig } from './config.schema.js';
 
 /**
  * Levée au démarrage uniquement. N'hérite PAS de DomainError (branche 4) :

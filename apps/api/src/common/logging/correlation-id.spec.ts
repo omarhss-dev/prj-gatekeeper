@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { isValidCorrelationId } from './correlation-id';
+import { isValidCorrelationId } from './correlation-id.js';
 
 describe('isValidCorrelationId', () => {
   it('accepte un UUID', () => {

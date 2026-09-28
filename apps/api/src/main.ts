@@ -6,8 +6,8 @@ import { config as loadDotenv } from 'dotenv';
 loadDotenv({ path: '../../.env' });
 
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { loadConfig, ConfigValidationError } from './config/load-config';
+import { AppModule } from './app.module.js';
+import { loadConfig, ConfigValidationError } from './config/load-config.js';
 import { Logger } from 'nestjs-pino';
 async function bootstrap(): Promise<void> {
   // Validation AVANT tout démarrage de Nest, dans ma portée de capture.
@@ -20,6 +20,9 @@ async function bootstrap(): Promise<void> {
 
   app.useLogger(app.get(Logger)); // Logger importé depuis 'nestjs-pino'
 
+  // Sans cet appel, SIGTERM tue le processus sans passer par les hooks :
+  // onApplicationShutdown (fermeture du pool) ne s'exécuterait jamais.
+  app.enableShutdownHooks();
   await app.listen(config.PORT);
 }
 

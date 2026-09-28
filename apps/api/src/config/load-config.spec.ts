@@ -1,4 +1,4 @@
-import { loadConfig, ConfigValidationError } from './load-config';
+import { loadConfig, ConfigValidationError } from './load-config.js';
 
 const valid = {
   NODE_ENV: 'development',
