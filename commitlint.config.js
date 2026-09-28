@@ -16,6 +16,7 @@ module.exports = {
         "obs",
         "api",
         "health",
+        "errors",
       ],
     ],
   },
