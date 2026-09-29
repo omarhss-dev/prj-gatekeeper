@@ -38,6 +38,7 @@ export class AppModule {
               config.NODE_ENV === 'development'
                 ? { target: 'pino-pretty' }
                 : undefined,
+            quietReqLogger: true,
           },
         }),
         DatabaseModule.forRoot(config),
