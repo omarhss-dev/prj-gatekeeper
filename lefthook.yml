@@ -9,6 +9,9 @@ pre-commit:
       run: npx prettier --check {staged_files}
     secrets:
       run: gitleaks protect --staged --no-banner
+    typecheck:
+      glob: "apps/api/**/*.ts"
+      run: npm run typecheck -w apps/api
 commit-msg:
   commands:
     conventional:
