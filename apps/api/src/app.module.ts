@@ -7,12 +7,18 @@ import type { AppConfig } from './config/config.schema.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
+import { APP_FILTER } from '@nestjs/core';
+import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
+
 @Module({})
 export class AppModule {
   static forRoot(config: AppConfig): DynamicModule {
     return {
       module: AppModule,
-      providers: [{ provide: APP_CONFIG, useValue: config }],
+      providers: [
+        { provide: APP_CONFIG, useValue: config },
+        { provide: APP_FILTER, useClass: AllExceptionsFilter },
+      ],
       exports: [APP_CONFIG],
       imports: [
         LoggerModule.forRoot({

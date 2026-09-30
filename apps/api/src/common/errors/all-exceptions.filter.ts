@@ -1,6 +1,15 @@
-import { DomainError, type DomainErrorCode } from './domain-error.js';
+import { randomUUID } from 'node:crypto';
 import { STATUS_CODES } from 'node:http';
-import { HttpException } from '@nestjs/common';
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { DomainError, type DomainErrorCode } from './domain-error.js';
+
 /** Corps RFC 7807, sans le correlationId (ajouté par le filtre). */
 export interface Problem {
   type: string;
@@ -61,4 +70,43 @@ export function toProblem(exception: unknown): Problem {
 
   // Tout le reste est un bug : le client n'en apprend rien.
   return httpProblem(500);
+}
+
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
+  catch(exception: unknown, host: ArgumentsHost): void {
+    const http = host.switchToHttp();
+    const req = http.getRequest<Request>();
+    const res = http.getResponse<Response>();
+    const problem = toProblem(exception);
+
+    this.log(exception);
+
+    // La réponse a déjà commencé à partir : plus rien ne peut être écrit.
+    if (res.headersSent) return;
+
+    // Posé par genReqId. Absent quand l'erreur précède le middleware pino-http
+    // (body-parser : JSON malformé, corps trop gros), prouvé par curl.
+    // Le type de pino-http le déclare toujours présent : on ne le croit pas.
+    const reqId: unknown = req.id;
+    const correlationId = typeof reqId === 'string' ? reqId : randomUUID();
+    res.setHeader('X-Correlation-Id', correlationId);
+
+    res
+      .status(problem.status)
+      .type('application/problem+json')
+      .json({ ...problem, correlationId });
+  }
+
+  private log(exception: unknown): void {
+    if (exception instanceof DomainError) {
+      this.logger.log({ code: exception.code }, 'Refus métier');
+      return;
+    }
+    // HttpException : déjà tracée par la ligne pino-http ou à la source (readiness).
+    if (exception instanceof HttpException) return;
+    this.logger.error(exception);
+  }
 }
