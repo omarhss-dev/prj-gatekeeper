@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { DOMAIN_ERROR_CODES, DomainError } from './domain-error.js';
 import { toProblem } from './all-exceptions.filter.js';
+import { RequestValidationError } from './request-validation-error.js';
 
 describe('toProblem', () => {
   it("garde le status d'une HttpException sans recopier son message", () => {
@@ -74,4 +75,24 @@ describe('toProblem', () => {
       expect(problem.title).toEqual(expect.any(String));
     },
   );
+
+  it('traduit une RequestValidationError en 422 avec path et code seulement', () => {
+    const problem = toProblem(
+      new RequestValidationError([
+        {
+          path: ['password'],
+          code: 'too_small',
+          message: 'Too small',
+          input: 'S3cr3t',
+        },
+      ]),
+    );
+    expect(problem).toEqual({
+      type: 'about:blank',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: "La requête n'a pas pu être traitée.",
+      errors: [{ path: ['password'], code: 'too_small' }],
+    });
+  });
 });

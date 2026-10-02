@@ -1,10 +1,12 @@
 import { jest } from '@jest/globals';
-import { Controller, Get, Logger } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AllExceptionsFilter } from './all-exceptions.filter.js';
 import { DomainError } from './domain-error.js';
+import { z } from 'zod';
+import { ZodValidationPipe } from '../validation/zod-validation.pipe.js';
 
 @Controller('boom')
 class ThrowingController {
@@ -17,7 +19,19 @@ class ThrowingController {
   domain() {
     throw new DomainError('SEAT_UNAVAILABLE', 'Le siège A12 est déjà pris.');
   }
+
+  @Post('body')
+  body(payload) {
+    return payload;
+  }
 }
+// Équivalent de @Body(pipe) sur le paramètre 0 : Babel ne lit pas les
+// décorateurs de paramètre, l'appel est donc écrit à la main (ADR-025).
+Body(new ZodValidationPipe(z.object({ password: z.string().min(10) })))(
+  ThrowingController.prototype,
+  'body',
+  0,
+);
 
 describe('AllExceptionsFilter (intégration HTTP)', () => {
   let app;
@@ -83,5 +97,18 @@ describe('AllExceptionsFilter (intégration HTTP)', () => {
       { code: 'SEAT_UNAVAILABLE' },
       'Refus métier',
     );
+  });
+
+  it("répond 422 avec path et code, sans logger d'erreur", async () => {
+    const res = await request(server)
+      .post('/boom/body')
+      .send({ password: 'short' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.errors).toEqual([
+      { path: ['password'], code: 'too_small' },
+    ]);
+    expect(res.body.correlationId).toBe(res.get('X-Correlation-Id'));
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });
