@@ -9,7 +9,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { loadConfig, ConfigValidationError } from './config/load-config.js';
 import { Logger } from 'nestjs-pino';
-async function bootstrap(): Promise<void> {
+async function bootstrap() {
   // Validation AVANT tout démarrage de Nest, dans ma portée de capture.
   // Un appel de fonction ordinaire, pas un effet de bord de décorateur.
   const config = loadConfig(process.env);
@@ -26,7 +26,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(config.PORT);
 }
 
-function reportStartupError(error: unknown): void {
+function reportStartupError(error) {
   /* eslint-disable no-console */
   if (error instanceof ConfigValidationError) {
     console.error(`Configuration invalide : ${error.message}`);
@@ -36,7 +36,7 @@ function reportStartupError(error: unknown): void {
   /* eslint-enable no-console */
 }
 
-bootstrap().catch((error: unknown) => {
+bootstrap().catch((error) => {
   reportStartupError(error);
   process.exitCode = 1;
 });

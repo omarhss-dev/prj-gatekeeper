@@ -1,4 +1,4 @@
-import { configSchema, type AppConfig } from './config.schema.js';
+import { configSchema } from './config.schema.js';
 
 /**
  * Levée au démarrage uniquement. N'hérite PAS de DomainError (branche 4) :
@@ -6,11 +6,12 @@ import { configSchema, type AppConfig } from './config.schema.js';
  * moment-là il n'y a pas encore de serveur HTTP.
  */
 export class ConfigValidationError extends Error {
-  constructor(readonly issues: readonly string[]) {
+  constructor(issues) {
     super(
       `Configuration invalide — l'application ne démarrera pas :\n` +
         issues.map((issue) => `  • ${issue}`).join('\n'),
     );
+    this.issues = issues;
     this.name = 'ConfigValidationError';
   }
 }
@@ -22,12 +23,11 @@ export class ConfigValidationError extends Error {
  * Ne fait PAS process.exit() : elle établit ce qui ne va pas, main.ts décide
  * ce que le processus en fait.
  */
-export function loadConfig(env: Record<string, unknown>): AppConfig {
+export function loadConfig(env) {
   const result = configSchema.safeParse(env);
 
   if (result.success) {
     // Gel superficiel : rend la configuration réellement immuable à l'exécution.
-    // Le type TypeScript, lui, est effacé à la compilation et ne protège rien.
     return Object.freeze(result.data);
   }
 

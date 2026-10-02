@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { Module, DynamicModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { APP_CONFIG } from './config/config.tokens.js';
 import { isValidCorrelationId } from './common/logging/correlation-id.js';
-import type { AppConfig } from './config/config.schema.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
@@ -12,7 +11,7 @@ import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 
 @Module({})
 export class AppModule {
-  static forRoot(config: AppConfig): DynamicModule {
+  static forRoot(config) {
     return {
       module: AppModule,
       providers: [

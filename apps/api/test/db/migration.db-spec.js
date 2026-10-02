@@ -1,17 +1,16 @@
 import { readdir, readFile } from 'node:fs/promises';
-import pg from 'pg';
 import { runner } from 'node-pg-migrate';
 import { createTestPool, single } from './database.js';
 
 const MIGRATIONS_DIR = 'migrations';
 
-async function migrationFiles(): Promise<string[]> {
+async function migrationFiles() {
   const files = await readdir(MIGRATIONS_DIR);
   return files.filter((file) => file.endsWith('.sql')).sort();
 }
 
 describe('migrations', () => {
-  let pool: pg.Pool;
+  let pool;
 
   beforeAll(() => {
     pool = createTestPool();
@@ -21,8 +20,8 @@ describe('migrations', () => {
     await pool.end();
   });
 
-  async function appliedCount(): Promise<number> {
-    const { rows } = await pool.query<{ n: number }>(
+  async function appliedCount() {
+    const { rows } = await pool.query(
       'SELECT count(*)::int AS n FROM pgmigrations',
     );
     return single(rows).n;
@@ -35,7 +34,7 @@ describe('migrations', () => {
   it('refuses to run a down migration and keeps the history intact', async () => {
     await expect(
       runner({
-        databaseUrl: process.env.DATABASE_URL!,
+        databaseUrl: process.env.DATABASE_URL,
         dir: MIGRATIONS_DIR,
         direction: 'down',
         count: 1,

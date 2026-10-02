@@ -1,8 +1,7 @@
 import { jest } from '@jest/globals';
-import type { AppConfig } from '../config/config.schema.js';
 import { createPool } from './pool.js';
 
-const config: AppConfig = {
+const config = {
   NODE_ENV: 'test',
   PORT: 3000,
   LOG_LEVEL: 'info',

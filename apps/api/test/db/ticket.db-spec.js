@@ -1,4 +1,3 @@
-import pg from 'pg';
 import { createTestPool, resetDatabase } from './database.js';
 import {
   insertEvent,
@@ -10,10 +9,10 @@ import {
 } from './fixtures.js';
 
 describe('tickets schema', () => {
-  let pool: pg.Pool;
-  let sectionId: string;
-  let seatId: string;
-  let reservationId: string;
+  let pool;
+  let sectionId;
+  let seatId;
+  let reservationId;
 
   beforeAll(() => {
     pool = createTestPool();

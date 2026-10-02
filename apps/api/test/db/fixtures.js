@@ -1,13 +1,7 @@
-import pg from 'pg';
-
 const PASSWORD_HASH = '$argon2id$v=19$m=65536,t=3,p=4$fake';
 
-async function insertReturningId(
-  pool: pg.Pool,
-  sql: string,
-  params: unknown[],
-): Promise<string> {
-  const { rows } = await pool.query<{ id: string }>(sql, params);
+async function insertReturningId(pool, sql, params) {
+  const { rows } = await pool.query(sql, params);
   const row = rows[0];
   if (!row) {
     throw new Error('INSERT returned no row');
@@ -15,10 +9,7 @@ async function insertReturningId(
   return row.id;
 }
 
-export function insertUser(
-  pool: pg.Pool,
-  email = 'orga@x.com',
-): Promise<string> {
+export function insertUser(pool, email = 'orga@x.com') {
   return insertReturningId(
     pool,
     `INSERT INTO users (email, password_hash, display_name)
@@ -28,11 +19,7 @@ export function insertUser(
   );
 }
 
-export function insertEvent(
-  pool: pg.Pool,
-  organizerId: string,
-  name = 'Concert',
-): Promise<string> {
+export function insertEvent(pool, organizerId, name = 'Concert') {
   return insertReturningId(
     pool,
     `INSERT INTO events (organizer_id, name, city, venue, starts_at, sales_open_at)
@@ -42,11 +29,7 @@ export function insertEvent(
   );
 }
 
-export function insertSection(
-  pool: pg.Pool,
-  eventId: string,
-  name = 'Fosse',
-): Promise<string> {
+export function insertSection(pool, eventId, name = 'Fosse') {
   return insertReturningId(
     pool,
     `INSERT INTO event_sections (event_id, name, price_cents, rows_count, seats_per_row)
@@ -56,12 +39,7 @@ export function insertSection(
   );
 }
 
-export function insertSeat(
-  pool: pg.Pool,
-  eventId: string,
-  sectionId: string,
-  label = 'A-1',
-): Promise<string> {
+export function insertSeat(pool, eventId, sectionId, label = 'A-1') {
   return insertReturningId(
     pool,
     `INSERT INTO event_seats (event_id, section_id, seat_label)
@@ -71,11 +49,7 @@ export function insertSeat(
   );
 }
 
-export function insertReservation(
-  pool: pg.Pool,
-  userId: string,
-  eventId: string,
-): Promise<string> {
+export function insertReservation(pool, userId, eventId) {
   return insertReturningId(
     pool,
     `INSERT INTO reservations (user_id, event_id, total_cents)
@@ -85,12 +59,7 @@ export function insertReservation(
   );
 }
 
-export function insertTicket(
-  pool: pg.Pool,
-  reservationId: string,
-  seatId: string,
-  code: string,
-): Promise<string> {
+export function insertTicket(pool, reservationId, seatId, code) {
   return insertReturningId(
     pool,
     `INSERT INTO tickets (reservation_id, event_seat_id, code, price_cents)

@@ -42,6 +42,3 @@ export const configSchema = z.object({
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
 });
-
-/** Une seule source de vérité : le schéma valide ET produit le type (ADR-009). */
-export type AppConfig = z.infer<typeof configSchema>;

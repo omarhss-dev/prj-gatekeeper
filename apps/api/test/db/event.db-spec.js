@@ -1,4 +1,3 @@
-import pg from 'pg';
 import { createTestPool, resetDatabase, single } from './database.js';
 import {
   insertEvent,
@@ -8,8 +7,8 @@ import {
 } from './fixtures.js';
 
 describe('events schema', () => {
-  let pool: pg.Pool;
-  let organizerId: string;
+  let pool;
+  let organizerId;
 
   beforeAll(() => {
     pool = createTestPool();
@@ -24,7 +23,7 @@ describe('events schema', () => {
     organizerId = await insertUser(pool);
   });
 
-  async function publish(eventId: string): Promise<void> {
+  async function publish(eventId) {
     await pool.query(
       `UPDATE events SET status = 'published', published_at = now() WHERE id = $1`,
       [eventId],
@@ -36,10 +35,7 @@ describe('events schema', () => {
       const eventId = await insertEvent(pool, organizerId);
       await publish(eventId);
 
-      const { rows } = await pool.query<{
-        status: string;
-        published_at: Date | null;
-      }>(
+      const { rows } = await pool.query(
         `UPDATE events SET status = 'cancelled' WHERE id = $1
          RETURNING status, published_at`,
         [eventId],
@@ -103,10 +99,7 @@ describe('events schema', () => {
 
   describe('updated_at trigger', () => {
     it('refreshes updated_at on every update', async () => {
-      const { rows: inserted } = await pool.query<{
-        id: string;
-        updated_at: Date;
-      }>(
+      const { rows: inserted } = await pool.query(
         `INSERT INTO events (organizer_id, name, city, venue, starts_at, sales_open_at, updated_at)
          VALUES ($1, 'Concert', 'Fes', 'Salle A',
                  now() + interval '30 days', now() + interval '7 days',
@@ -116,7 +109,7 @@ describe('events schema', () => {
       );
       const created = single(inserted);
 
-      const { rows: updated } = await pool.query<{ updated_at: Date }>(
+      const { rows: updated } = await pool.query(
         `UPDATE events SET name = 'Concert renamed' WHERE id = $1 RETURNING updated_at`,
         [created.id],
       );
