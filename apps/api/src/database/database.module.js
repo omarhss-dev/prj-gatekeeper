@@ -1,22 +1,16 @@
-import {
-  DynamicModule,
-  Inject,
-  Logger,
-  Module,
-  OnApplicationShutdown,
-} from '@nestjs/common';
-import type { Pool } from 'pg';
-import type { AppConfig } from '../config/config.schema.js';
+import { Inject, Logger, Module } from '@nestjs/common';
 import { PG_POOL } from './database.tokens.js';
 import { createPool } from './pool.js';
 
 @Module({})
-export class DatabaseModule implements OnApplicationShutdown {
-  private readonly logger = new Logger(DatabaseModule.name);
+export class DatabaseModule {
+  logger = new Logger(DatabaseModule.name);
 
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(pool) {
+    this.pool = pool;
+  }
 
-  static forRoot(config: AppConfig): DynamicModule {
+  static forRoot(config) {
     return {
       module: DatabaseModule,
       // Seul module global du projet : le pool est lu par tous les modules
@@ -34,8 +28,13 @@ export class DatabaseModule implements OnApplicationShutdown {
 
   // onApplicationShutdown est le DERNIER hook, appelé après la fermeture
   // du serveur HTTP : plus aucune requête ne peut emprunter une connexion.
-  async onApplicationShutdown(): Promise<void> {
+  async onApplicationShutdown() {
     await this.pool.end();
     this.logger.log('Pool PostgreSQL fermé');
   }
 }
+
+// Sans emitDecoratorMetadata ni décorateur de paramètre, Nest ne peut plus
+// deviner la dépendance : le jeton du paramètre 0 est déclaré à la main,
+// comme le faisait @Inject(PG_POOL).
+Inject(PG_POOL)(DatabaseModule, undefined, 0);

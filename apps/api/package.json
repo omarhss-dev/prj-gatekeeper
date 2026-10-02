@@ -7,10 +7,10 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "babel src --out-dir dist --delete-dir-on-start --ignore \"src/**/*.spec.js\"",
     "deploy": "nest deploy",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\"",
+    "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
@@ -22,8 +22,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:migrate": "node-pg-migrate up",
     "db:migrate:create": "node-pg-migrate create --migration-file-language sql",
-    "test:db": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand --testRegex '.*\\.db-spec\\.ts$' --globalSetup ./test/db/global-setup.ts --globalTeardown ./test/db/global-teardown.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "test:db": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand --testRegex \".*\\\\.db-spec\\\\.js$\" --globalSetup ./test/db/global-setup.js --globalTeardown ./test/db/global-teardown.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
@@ -39,6 +38,11 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@babel/cli": "^8.0.6",
+    "@babel/core": "^8.0.6",
+    "@babel/eslint-parser": "^8.0.6",
+    "@babel/plugin-proposal-decorators": "^8.0.2",
+    "@babel/preset-env": "^8.0.6",
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
     "@eslint/js": "^10.0.1",
@@ -47,11 +51,9 @@
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
     "@testcontainers/postgresql": "^12.2.0",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.0.0",
-    "@types/pg": "^8.23.1",
-    "@types/supertest": "^7.0.0",
+    "babel-jest": "^30.5.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.13.0",
     "jest": "^30.0.0",
     "node-pg-migrate": "^9.0.0",
     "oxlint": "^1.58.0",
@@ -59,11 +61,8 @@
     "prettier": "^3.4.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.70.0"
+    "tsconfig-paths": "^4.2.0"
   }
 }

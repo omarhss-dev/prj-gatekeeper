@@ -4,23 +4,26 @@ import {
   Header,
   HttpCode,
   HttpStatus,
+  Inject,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { HealthService } from './health.service.js';
 
 @Controller('health')
 export class HealthController {
-  constructor(private readonly health: HealthService) {}
+  constructor(health) {
+    this.health = health;
+  }
 
   @Get('live')
-  live(): { status: 'ok' } {
+  live() {
     return { status: 'ok' };
   }
 
   @Get('ready')
   @Header('Retry-After', '5')
   @HttpCode(HttpStatus.OK)
-  async ready(): Promise<{ status: 'ok'; postgres: 'up' }> {
+  async ready() {
     const reachable = await this.health.isDatabaseReachable();
 
     if (!reachable) {
@@ -32,3 +35,8 @@ export class HealthController {
     return { status: 'ok', postgres: 'up' };
   }
 }
+
+// Sans emitDecoratorMetadata ni décorateur de paramètre, Nest ne lit plus
+// le type du paramètre : le jeton du paramètre 0 est déclaré à la main,
+// là où TypeScript émettait son type.
+Inject(HealthService)(HealthController, undefined, 0);

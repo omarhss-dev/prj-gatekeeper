@@ -1,12 +1,7 @@
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { runner } from 'node-pg-migrate';
 
-declare global {
-  var __PG_CONTAINER__: StartedPostgreSqlContainer | undefined;
-}
-
-export default async function globalSetup(): Promise<void> {
+export default async function globalSetup() {
   const container = await new PostgreSqlContainer('postgres:16-alpine').start();
   const databaseUrl = container.getConnectionUri();
 

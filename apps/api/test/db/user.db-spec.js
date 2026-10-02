@@ -1,4 +1,3 @@
-import pg from 'pg';
 import { createTestPool, resetDatabase, single } from './database.js';
 const validUser = {
   email: 'omar@x.com',
@@ -7,7 +6,7 @@ const validUser = {
 };
 
 describe('users schema', () => {
-  let pool: pg.Pool;
+  let pool;
 
   beforeAll(() => {
     pool = createTestPool();
@@ -21,9 +20,9 @@ describe('users schema', () => {
     await resetDatabase(pool);
   });
 
-  function insertUser(overrides: Partial<typeof validUser> = {}) {
+  function insertUser(overrides = {}) {
     const user = { ...validUser, ...overrides };
-    return pool.query<{ id: string; role: string }>(
+    return pool.query(
       `INSERT INTO users (email, password_hash, display_name)
        VALUES ($1, $2, $3)
        RETURNING id, role`,
@@ -36,7 +35,7 @@ describe('users schema', () => {
     expect(single(rows).role).toBe('customer');
   });
 
-  it.each<[string, Partial<typeof validUser>, string]>([
+  it.each([
     [
       'an uppercase email',
       { email: 'Omar@x.com' },

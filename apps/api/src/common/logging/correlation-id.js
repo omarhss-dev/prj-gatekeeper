@@ -8,6 +8,6 @@
  */
 const CORRELATION_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
-export function isValidCorrelationId(value: unknown): value is string {
+export function isValidCorrelationId(value) {
   return typeof value === 'string' && CORRELATION_ID_PATTERN.test(value);
 }

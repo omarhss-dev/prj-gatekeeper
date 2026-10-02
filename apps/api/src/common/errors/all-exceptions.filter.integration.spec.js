@@ -1,6 +1,5 @@
-import type { Server } from 'node:http';
 import { jest } from '@jest/globals';
-import { Controller, Get, type INestApplication, Logger } from '@nestjs/common';
+import { Controller, Get, Logger } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -10,19 +9,19 @@ import { DomainError } from './domain-error.js';
 @Controller('boom')
 class ThrowingController {
   @Get('unknown')
-  unknown(): never {
+  unknown() {
     throw new Error('relation "tickets" does not exist');
   }
 
   @Get('domain')
-  domain(): never {
+  domain() {
     throw new DomainError('SEAT_UNAVAILABLE', 'Le siège A12 est déjà pris.');
   }
 }
 
 describe('AllExceptionsFilter (intégration HTTP)', () => {
-  let app: INestApplication;
-  let server: Server;
+  let app;
+  let server;
   const errorSpy = jest
     .spyOn(Logger.prototype, 'error')
     .mockImplementation(() => undefined);
@@ -37,7 +36,7 @@ describe('AllExceptionsFilter (intégration HTTP)', () => {
     }).compile();
     app = moduleRef.createNestApplication();
     await app.init();
-    server = app.getHttpServer() as Server;
+    server = app.getHttpServer();
   });
 
   afterAll(async () => {

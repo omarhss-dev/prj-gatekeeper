@@ -39,23 +39,23 @@ describe('loadConfig', () => {
   });
 
   it('signale TOUTES les variables fautives en une fois', () => {
+    expect.assertions(1);
     try {
       loadConfig({});
-      fail('aurait dû lever');
     } catch (error) {
-      expect((error as ConfigValidationError).issues).toHaveLength(2);
+      expect(error.issues).toHaveLength(2);
     }
   });
 
   it('ne fait jamais fuiter la valeur reçue dans le message', () => {
+    expect.assertions(1);
     try {
       loadConfig({
         ...valid,
         DATABASE_URL: 'redis://user:s3cr3t@localhost:6379',
       });
-      fail('aurait dû lever');
     } catch (error) {
-      expect((error as Error).message).not.toContain('s3cr3t');
+      expect(error.message).not.toContain('s3cr3t');
     }
   });
 });

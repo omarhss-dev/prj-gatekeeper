@@ -1,33 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { STATUS_CODES } from 'node:http';
-import {
-  type ArgumentsHost,
-  Catch,
-  type ExceptionFilter,
-  HttpException,
-  Logger,
-} from '@nestjs/common';
-import type { Request, Response } from 'express';
-import { DomainError, type DomainErrorCode } from './domain-error.js';
-
-/** Corps RFC 7807, sans le correlationId (ajouté par le filtre). */
-export interface Problem {
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  code?: DomainErrorCode;
-}
+import { Catch, HttpException, Logger } from '@nestjs/common';
+import { DomainError } from './domain-error.js';
 
 /**
  * Seul point où un code métier rencontre HTTP.
- * Record exige les 6 codes : un code sans entrée ne compile pas.
- * status restreint à 409 | 422 : un refus métier n'est jamais un 5xx.
+ * Un refus métier n'est jamais un 5xx : 409 ou 422 uniquement.
  */
-const DOMAIN_ERROR_HTTP: Record<
-  DomainErrorCode,
-  { status: 409 | 422; title: string }
-> = {
+const DOMAIN_ERROR_HTTP = {
   SEAT_UNAVAILABLE: { status: 409, title: 'Seat unavailable' },
   SALES_NOT_OPEN: { status: 409, title: 'Sales not open' },
   EVENT_NOT_AVAILABLE: { status: 409, title: 'Event not available' },
@@ -43,7 +23,7 @@ const INTERNAL_DETAIL = 'Une erreur interne est survenue.';
 const CLIENT_DETAIL = "La requête n'a pas pu être traitée.";
 
 /** Erreur hors métier : about:blank, libellé HTTP standard, jamais de texte de l'exception. */
-function httpProblem(status: number): Problem {
+function httpProblem(status) {
   return {
     type: 'about:blank',
     title: STATUS_CODES[status] ?? 'Unknown Error',
@@ -52,7 +32,7 @@ function httpProblem(status: number): Problem {
   };
 }
 
-export function toProblem(exception: unknown): Problem {
+export function toProblem(exception) {
   if (exception instanceof DomainError) {
     const { status, title } = DOMAIN_ERROR_HTTP[exception.code];
     return {
@@ -73,13 +53,13 @@ export function toProblem(exception: unknown): Problem {
 }
 
 @Catch()
-export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(AllExceptionsFilter.name);
+export class AllExceptionsFilter {
+  logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost): void {
+  catch(exception, host) {
     const http = host.switchToHttp();
-    const req = http.getRequest<Request>();
-    const res = http.getResponse<Response>();
+    const req = http.getRequest();
+    const res = http.getResponse();
     const problem = toProblem(exception);
 
     this.log(exception);
@@ -90,7 +70,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Posé par genReqId. Absent quand l'erreur précède le middleware pino-http
     // (body-parser : JSON malformé, corps trop gros), prouvé par curl.
     // Le type de pino-http le déclare toujours présent : on ne le croit pas.
-    const reqId: unknown = req.id;
+    const reqId = req.id;
     const correlationId = typeof reqId === 'string' ? reqId : randomUUID();
     res.setHeader('X-Correlation-Id', correlationId);
 
@@ -100,7 +80,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       .json({ ...problem, correlationId });
   }
 
-  private log(exception: unknown): void {
+  log(exception) {
     if (exception instanceof DomainError) {
       this.logger.log({ code: exception.code }, 'Refus métier');
       return;

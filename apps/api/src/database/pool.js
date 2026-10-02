@@ -1,12 +1,7 @@
 import { Pool } from 'pg';
-import type { Logger } from '@nestjs/common';
-import type { AppConfig } from '../config/config.schema.js';
-
-// Seules les méthodes réellement appelées : un test peut fournir un faux
-// sans cast. Ce n'est pas un port (ADR-010), juste un type minimal.
-type PoolLogger = Pick<Logger, 'warn'>;
-
-export function createPool(config: AppConfig, logger: PoolLogger): Pool {
+// logger : seul warn() est appelé, un test peut fournir un faux minimal.
+// Ce n'est pas un port (ADR-010).
+export function createPool(config, logger) {
   const pool = new Pool({
     connectionString: config.DATABASE_URL,
     // Par INSTANCE. 4 réplicas × 10 = 40 < ~50 connexions du B1ms.
