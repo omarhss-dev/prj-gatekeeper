@@ -5,10 +5,9 @@ import { APP_CONFIG } from './config/config.tokens.js';
 import { isValidCorrelationId } from './common/logging/correlation-id.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
-
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, RouterModule } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
-
+import { AuthModule } from './modules/auth/auth.module.js';
 @Module({})
 export class AppModule {
   static forRoot(config) {
@@ -48,6 +47,8 @@ export class AppModule {
         }),
         DatabaseModule.forRoot(config),
         HealthModule,
+        AuthModule,
+        RouterModule.register([{ path: 'api/v1', module: AuthModule }]),
       ],
     };
   }
