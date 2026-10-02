@@ -17,6 +17,7 @@ const DOMAIN_ERROR_HTTP = {
     status: 409,
     title: 'Reservation not cancellable',
   },
+  EMAIL_ALREADY_REGISTERED: { status: 409, title: 'Email already registered' },
 };
 
 const INTERNAL_DETAIL = 'Une erreur interne est survenue.';

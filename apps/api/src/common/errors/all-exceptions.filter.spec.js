@@ -3,7 +3,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { DomainError } from './domain-error.js';
+import { DOMAIN_ERROR_CODES, DomainError } from './domain-error.js';
 import { toProblem } from './all-exceptions.filter.js';
 
 describe('toProblem', () => {
@@ -65,4 +65,13 @@ describe('toProblem', () => {
   it("traite une valeur qui n'est pas une Error comme inconnue", () => {
     expect(toProblem('boom').status).toBe(500);
   });
+
+  it.each(DOMAIN_ERROR_CODES)(
+    '%s a une ligne dans la table, en 409 ou 422',
+    (code) => {
+      const problem = toProblem(new DomainError(code, 'x'));
+      expect([409, 422]).toContain(problem.status);
+      expect(problem.title).toEqual(expect.any(String));
+    },
+  );
 });
