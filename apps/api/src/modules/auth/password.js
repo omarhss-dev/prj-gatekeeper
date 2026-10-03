@@ -1,4 +1,4 @@
-import { argon2id, hash } from 'argon2';
+import { argon2id, hash, verify } from 'argon2';
 
 /**
  * Le minimum recommandé par l'OWASP : 19 Mio, 2 passes, 1 voie.
@@ -20,4 +20,15 @@ const ARGON2_OPTIONS = Object.freeze({
 
 export function hashPassword(palin) {
   return hash(palin, ARGON2_OPTIONS);
+}
+
+export function verifyPassword(digest, plain) {
+  return verify(digest, plain);
+}
+
+// top level wait
+const DUMMY_HASH = await hashPassword('mot de passe factrice, jamais attribue');
+
+export async function verifyDummyPassword(plain) {
+  await verify(DUMMY_HASH, plain);
 }

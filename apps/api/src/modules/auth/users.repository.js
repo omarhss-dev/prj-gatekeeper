@@ -23,6 +23,20 @@ export class UsersRepository {
     );
     return rows[0] ? toUser(rows[0]) : null;
   }
+
+  /**
+   * Seule méthode qui lit password_hash : réservée à la vérification du login.
+   * Renvoie null si aucun compte n'a cet email.
+   */
+  async findCredentialsByEmail(email) {
+    const { rows } = await this.pool.query(
+      `SELECT id, role, password_hash FROM users WHERE email = $1`,
+      [email],
+    );
+    if (!rows[0]) return null;
+    const { id, role, password_hash: passwordHash } = rows[0];
+    return { id, role, passwordHash };
+  }
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). Jamais password_hash. */
@@ -36,6 +50,4 @@ function toUser(row) {
   };
 }
 
-// Sans décorateur de paramètre (ADR-025) : le jeton du paramètre 0 du
-// constructeur est déclaré à la main, comme dans HealthService.
 Inject(PG_POOL)(UsersRepository, undefined, 0);

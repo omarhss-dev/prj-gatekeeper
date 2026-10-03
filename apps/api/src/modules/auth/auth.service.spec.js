@@ -1,5 +1,7 @@
 import { DomainError } from '../../common/errors/domain-error.js';
 import { AuthService } from './auth.service.js';
+import { hashPassword } from './password.js';
+import { TokenService } from './token.service.js';
 
 const input = {
   email: 'omar@example.com',
@@ -57,5 +59,67 @@ describe('AuthService.register', () => {
     await expect(new AuthService(users).register(input)).rejects.toThrow(
       'connect ECONNREFUSED',
     );
+  });
+});
+
+const tokens = new TokenService({ secret: 'x'.repeat(32), ttlSeconds: 3600 });
+const passwordHash = await hashPassword('correct horse battery');
+const credentials = { id: 'u1', role: 'customer', passwordHash };
+
+function fakeCredentialsRepository(found) {
+  return { findCredentialsByEmail: async () => found };
+}
+
+describe('AuthService.login', () => {
+  it('renvoie un token vérifiable pour le bon mot de passe', async () => {
+    const service = new AuthService(
+      fakeCredentialsRepository(credentials),
+      tokens,
+    );
+    const result = await service.login({
+      email: 'omar@example.com',
+      password: 'correct horse battery',
+    });
+    await expect(tokens.verify(result.accessToken)).resolves.toEqual({
+      userId: 'u1',
+      role: 'customer',
+    });
+  });
+
+  it('renvoie null pour un mauvais mot de passe', async () => {
+    const service = new AuthService(
+      fakeCredentialsRepository(credentials),
+      tokens,
+    );
+    await expect(
+      service.login({
+        email: 'omar@example.com',
+        password: 'correct horse batterY',
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it('renvoie null pour un email inconnu', async () => {
+    const service = new AuthService(fakeCredentialsRepository(null), tokens);
+    await expect(
+      service.login({
+        email: 'inconnu@example.com',
+        password: 'correct horse battery',
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it('laisse remonter une erreur du repository, sans la transformer en null', async () => {
+    const users = {
+      findCredentialsByEmail: async () => {
+        throw new Error('connect ECONNREFUSED');
+      },
+    };
+    await expect(
+      new AuthService(users, tokens).login({
+        email: 'omar@example.com',
+        password: 'x',
+      }),
+    ).rejects.toThrow('connect ECONNREFUSED');
   });
 });

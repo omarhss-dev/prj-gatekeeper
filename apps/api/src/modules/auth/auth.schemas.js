@@ -19,3 +19,8 @@ export const registerSchema = z.object({
   // max(100) : règle de l'app seule, la base ne borne pas ce champ.
   displayName: z.string().trim().min(1).max(100),
 });
+
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1),
+});

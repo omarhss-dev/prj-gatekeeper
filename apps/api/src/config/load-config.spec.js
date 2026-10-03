@@ -12,6 +12,7 @@ describe('loadConfig', () => {
       ...valid,
       PORT: 3000,
       LOG_LEVEL: 'info',
+      JWT_TTL_SECONDS: 3600,
     });
   });
 
@@ -73,5 +74,16 @@ describe('loadConfig', () => {
     } catch (error) {
       expect(error.message).not.toContain('s3cr3t');
     }
+  });
+  it('lit JWT_TTL_SECONDS et le convertit en nombre', () => {
+    expect(
+      loadConfig({ ...valid, JWT_TTL_SECONDS: '900' }).JWT_TTL_SECONDS,
+    ).toBe(900);
+  });
+
+  it('refuse un JWT_TTL_SECONDS de moins de 60 secondes', () => {
+    expect(() => loadConfig({ ...valid, JWT_TTL_SECONDS: '30' })).toThrow(
+      /JWT_TTL_SECONDS/,
+    );
   });
 });

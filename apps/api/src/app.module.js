@@ -47,7 +47,7 @@ export class AppModule {
         }),
         DatabaseModule.forRoot(config),
         HealthModule,
-        AuthModule,
+        AuthModule.forRoot(config),
         RouterModule.register([{ path: 'api/v1', module: AuthModule }]),
       ],
     };
