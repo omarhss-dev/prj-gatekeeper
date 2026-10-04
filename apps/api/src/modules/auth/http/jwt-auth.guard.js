@@ -1,5 +1,5 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { TokenService } from './token.service.js';
+import { TokenService } from '../core/token.service.js';
 
 /**
  * Exige un access token valide : « Authorization: Bearer <jwt> ».

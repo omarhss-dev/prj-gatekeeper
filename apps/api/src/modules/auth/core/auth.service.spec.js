@@ -1,4 +1,4 @@
-import { DomainError } from '../../common/errors/domain-error.js';
+import { DomainError } from '../../../common/errors/domain-error.js';
 import { AuthService } from './auth.service.js';
 import { hashPassword } from './password.js';
 import { TokenService } from './token.service.js';

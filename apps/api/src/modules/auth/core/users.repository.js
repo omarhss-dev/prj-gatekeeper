@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { PG_POOL } from '../../database/database.tokens.js';
+import { PG_POOL } from '../../../database/database.tokens.js';
 
 /** Seul endroit du module où la table users est lue ou écrite (ADR-002). */
 @Injectable()

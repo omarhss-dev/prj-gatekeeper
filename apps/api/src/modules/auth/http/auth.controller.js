@@ -7,9 +7,9 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
+import { ZodValidationPipe } from '../../../common/validation/zod-validation.pipe.js';
 import { registerSchema, loginSchema } from './auth.schemas.js';
-import { AuthService } from './auth.service.js';
+import { AuthService } from '../core/auth.service.js';
 
 @Controller('auth')
 export class AuthController {

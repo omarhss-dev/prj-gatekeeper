@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DomainError } from '../../common/errors/domain-error.js';
+import { DomainError } from '../../../common/errors/domain-error.js';
 import {
   hashPassword,
   verifyDummyPassword,

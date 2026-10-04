@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { AuthService } from './auth.service.js';
+import { AuthService } from '../core/auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 /** Ressources de l'utilisateur connecté : /api/v1/me. */
