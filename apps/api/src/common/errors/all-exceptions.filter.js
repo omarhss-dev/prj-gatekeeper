@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { STATUS_CODES } from 'node:http';
 import { Catch, HttpException, Logger } from '@nestjs/common';
 import { DomainError } from './domain-error.js';
-
+import { RequestValidationError } from './request-validation-error.js';
 /**
  * Seul point où un code métier rencontre HTTP.
  * Un refus métier n'est jamais un 5xx : 409 ou 422 uniquement.
@@ -17,6 +17,7 @@ const DOMAIN_ERROR_HTTP = {
     status: 409,
     title: 'Reservation not cancellable',
   },
+  EMAIL_ALREADY_REGISTERED: { status: 409, title: 'Email already registered' },
 };
 
 const INTERNAL_DETAIL = 'Une erreur interne est survenue.';
@@ -43,6 +44,13 @@ export function toProblem(exception) {
       code: exception.code,
     };
   }
+
+  if (exception instanceof RequestValidationError) {
+    return { ...httpProblem(422), errors: exception.issues };
+  }
+
+  // 422 : erreur du client, déjà tracée par la ligne pino-http.
+  if (exception instanceof RequestValidationError) return;
 
   if (exception instanceof HttpException) {
     return httpProblem(exception.getStatus());
@@ -85,8 +93,11 @@ export class AllExceptionsFilter {
       this.logger.log({ code: exception.code }, 'Refus métier');
       return;
     }
+    // 422 : erreur du client, déjà tracée par la ligne pino-http.
+    if (exception instanceof RequestValidationError) return;
     // HttpException : déjà tracée par la ligne pino-http ou à la source (readiness).
     if (exception instanceof HttpException) return;
+
     this.logger.error(exception);
   }
 }

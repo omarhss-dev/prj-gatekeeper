@@ -1,3 +1,18 @@
+/**
+ * Les codes métier du contrat d'API (cahier des charges §6).
+ * Côté domaine : cette liste ne sait rien de HTTP. Les status vivent dans la
+ * table du filtre (ADR-015).
+ */
+export const DOMAIN_ERROR_CODES = Object.freeze([
+  'SEAT_UNAVAILABLE',
+  'SALES_NOT_OPEN',
+  'EVENT_NOT_AVAILABLE',
+  'EVENT_ALREADY_PUBLISHED',
+  'MAX_SEATS_EXCEEDED',
+  'RESERVATION_NOT_CANCELLABLE',
+  'EMAIL_ALREADY_REGISTERED',
+]);
+
 /** Refus métier prévu (vente fermée, siège pris) : pas un incident. */
 export class DomainError extends Error {
   name = 'DomainError';
@@ -11,6 +26,11 @@ export class DomainError extends Error {
    */
   constructor(code, detail) {
     super(detail);
+
+    if (!DOMAIN_ERROR_CODES.includes(code)) {
+      throw new TypeError(`Code métier inconnu : ${code}`);
+    }
+
     this.code = code;
   }
 }

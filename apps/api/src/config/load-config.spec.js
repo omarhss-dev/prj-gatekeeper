@@ -3,6 +3,7 @@ import { loadConfig, ConfigValidationError } from './load-config.js';
 const valid = {
   NODE_ENV: 'development',
   DATABASE_URL: 'postgres://gatekeeper:s3cr3t@localhost:5432/gatekeeper',
+  JWT_SECRET: 'x'.repeat(32),
 };
 
 describe('loadConfig', () => {
@@ -11,6 +12,7 @@ describe('loadConfig', () => {
       ...valid,
       PORT: 3000,
       LOG_LEVEL: 'info',
+      JWT_TTL_SECONDS: 3600,
     });
   });
 
@@ -43,7 +45,22 @@ describe('loadConfig', () => {
     try {
       loadConfig({});
     } catch (error) {
-      expect(error.issues).toHaveLength(2);
+      expect(error.issues).toHaveLength(3);
+    }
+  });
+
+  it('rejette un JWT_SECRET de moins de 32 caractères', () => {
+    expect(() => loadConfig({ ...valid, JWT_SECRET: 'x'.repeat(31) })).toThrow(
+      /JWT_SECRET/,
+    );
+  });
+
+  it('ne fait jamais fuiter le JWT_SECRET refusé dans le message', () => {
+    expect.assertions(1);
+    try {
+      loadConfig({ ...valid, JWT_SECRET: 'tooShortS3cr3t' });
+    } catch (error) {
+      expect(error.message).not.toContain('tooShortS3cr3t');
     }
   });
 
@@ -57,5 +74,16 @@ describe('loadConfig', () => {
     } catch (error) {
       expect(error.message).not.toContain('s3cr3t');
     }
+  });
+  it('lit JWT_TTL_SECONDS et le convertit en nombre', () => {
+    expect(
+      loadConfig({ ...valid, JWT_TTL_SECONDS: '900' }).JWT_TTL_SECONDS,
+    ).toBe(900);
+  });
+
+  it('refuse un JWT_TTL_SECONDS de moins de 60 secondes', () => {
+    expect(() => loadConfig({ ...valid, JWT_TTL_SECONDS: '30' })).toThrow(
+      /JWT_TTL_SECONDS/,
+    );
   });
 });

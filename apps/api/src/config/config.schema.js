@@ -41,4 +41,9 @@ export const configSchema = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
+
+  JWT_SECRET: z.string().min(32),
+  // Pas de .default() : un secret par défaut est connu de tous ceux qui lisent
+
+  JWT_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(3600),
 });
