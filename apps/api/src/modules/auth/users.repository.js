@@ -37,6 +37,14 @@ export class UsersRepository {
     const { id, role, password_hash: passwordHash } = rows[0];
     return { id, role, passwordHash };
   }
+  /** Profil public d'un utilisateur, sans password_hash. null s'il n'existe pas. */
+  async findById(id) {
+    const { rows } = await this.pool.query(
+      `SELECT id, email, display_name, role, created_at FROM users WHERE id = $1`,
+      [id],
+    );
+    return rows[0] ? toUser(rows[0]) : null;
+  }
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). Jamais password_hash. */

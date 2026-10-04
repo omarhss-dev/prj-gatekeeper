@@ -123,3 +123,15 @@ describe('AuthService.login', () => {
     ).rejects.toThrow('connect ECONNREFUSED');
   });
 });
+
+describe('AuthService.getProfile', () => {
+  it('renvoie le profil trouvé par le repository', async () => {
+    const users = { findById: async (id) => (id === 'u1' ? user : null) };
+    await expect(new AuthService(users).getProfile('u1')).resolves.toBe(user);
+  });
+
+  it("renvoie null si le compte n'existe plus", async () => {
+    const users = { findById: async () => null };
+    await expect(new AuthService(users).getProfile('u1')).resolves.toBeNull();
+  });
+});

@@ -41,6 +41,10 @@ export class AuthService {
     }
     return { accessToken: await this.tokens.sign(credentials) };
   }
+
+  getProfile(userId) {
+    return this.users.findById(userId);
+  }
 }
 
 Inject(UsersRepository)(AuthService, undefined, 0);

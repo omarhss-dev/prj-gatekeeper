@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller.js';
-import { AuthService } from './auth.service.js';
+import { AuthService, MeController } from './auth.service.js';
 import { TokenService } from './token.service.js';
 import { UsersRepository } from './users.repository.js';
 
@@ -13,7 +13,7 @@ export class AuthModule {
   static forRoot(config) {
     return {
       module: AuthModule,
-      controllers: [AuthController],
+      controllers: [AuthController, MeController],
       providers: [
         AuthService,
         UsersRepository,
