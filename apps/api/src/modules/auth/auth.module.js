@@ -27,6 +27,7 @@ export class AuthModule {
             }),
         },
       ],
+      exports: [TokenService],
     };
   }
 }

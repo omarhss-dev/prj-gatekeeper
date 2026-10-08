@@ -8,9 +8,13 @@ import { HealthModule } from './modules/health/health.module.js';
 import { APP_FILTER, RouterModule } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { EventsModule } from './modules/events/events.module.js';
 @Module({})
 export class AppModule {
   static forRoot(config) {
+    // UNE instance d'AuthModule, partagée par référence avec EventsModule :
+    // deux appels à forRoot créeraient deux modules (voir EventsModule).
+    const authModule = AuthModule.forRoot(config);
     return {
       module: AppModule,
       providers: [
@@ -47,8 +51,12 @@ export class AppModule {
         }),
         DatabaseModule.forRoot(config),
         HealthModule,
-        AuthModule.forRoot(config),
-        RouterModule.register([{ path: 'api/v1', module: AuthModule }]),
+        authModule,
+        EventsModule.forRoot(authModule),
+        RouterModule.register([
+          { path: 'api/v1', module: AuthModule },
+          { path: 'api/v1', module: EventsModule },
+        ]),
       ],
     };
   }
