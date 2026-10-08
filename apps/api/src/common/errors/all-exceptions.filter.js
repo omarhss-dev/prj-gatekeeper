@@ -49,9 +49,6 @@ export function toProblem(exception) {
     return { ...httpProblem(422), errors: exception.issues };
   }
 
-  // 422 : erreur du client, déjà tracée par la ligne pino-http.
-  if (exception instanceof RequestValidationError) return;
-
   if (exception instanceof HttpException) {
     return httpProblem(exception.getStatus());
   }
