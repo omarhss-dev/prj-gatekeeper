@@ -17,6 +17,7 @@ module.exports = {
         "api",
         "health",
         "errors",
+        "events",
       ],
     ],
   },
