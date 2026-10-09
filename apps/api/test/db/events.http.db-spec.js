@@ -52,17 +52,15 @@ describe('POST /api/v1/events (AppModule, vrai Postgres)', () => {
     await resetDatabase(pool);
   });
 
-  async function register() {
-    const res = await request(server)
-      .post('/api/v1/auth/register')
-      .send(account);
+  async function register(who = account) {
+    const res = await request(server).post('/api/v1/auth/register').send(who);
     return res.body.id;
   }
 
-  async function login() {
+  async function login(who = account) {
     const res = await request(server)
       .post('/api/v1/auth/login')
-      .send({ email: account.email, password: account.password });
+      .send({ email: who.email, password: who.password });
     return res.body.accessToken;
   }
 
@@ -78,10 +76,10 @@ describe('POST /api/v1/events (AppModule, vrai Postgres)', () => {
     return { userId, token: await login() };
   }
 
-  async function organizerToken() {
-    const userId = await register();
+  async function organizerToken(who = account) {
+    const userId = await register(who);
     await promoteToOrganizer(userId);
-    return { userId, token: await login() };
+    return { userId, token: await login(who) };
   }
 
   const createEvent = (token, body = newEvent) => {
@@ -153,5 +151,66 @@ describe('POST /api/v1/events (AppModule, vrai Postgres)', () => {
     expect(res.body.errors).toEqual([
       { path: ['sections'], code: 'too_small' },
     ]);
+  });
+
+  describe('POST /api/v1/events/:id/publish', () => {
+    const otherAccount = { ...account, email: 'autre@example.com' };
+
+    const publish = (token, id) =>
+      request(server)
+        .post(`/api/v1/events/${id}/publish`)
+        .set('Authorization', `Bearer ${token}`);
+
+    async function draftOf(token) {
+      return (await createEvent(token)).body.id;
+    }
+
+    it('publie son brouillon : 200, statut published, sièges générés', async () => {
+      const { token } = await organizerToken();
+      const res = await publish(token, await draftOf(token));
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ status: 'published', seatCount: 350 });
+    });
+
+    it('répond 409 EVENT_ALREADY_PUBLISHED à une seconde publication', async () => {
+      const { token } = await organizerToken();
+      const id = await draftOf(token);
+      await publish(token, id);
+
+      const res = await publish(token, id);
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('EVENT_ALREADY_PUBLISHED');
+    });
+
+    it("répond 404 au brouillon d'un autre organisateur, comme s'il n'existait pas", async () => {
+      const { token: ownerToken } = await organizerToken();
+      const id = await draftOf(ownerToken);
+      const { token: otherToken } = await organizerToken(otherAccount);
+
+      const res = await publish(otherToken, id);
+      expect(res.status).toBe(404);
+      expect(res.body).not.toHaveProperty('code');
+    });
+
+    it("répond 403 à l'événement publié d'un autre organisateur", async () => {
+      const { token: ownerToken } = await organizerToken();
+      const id = await draftOf(ownerToken);
+      await publish(ownerToken, id);
+      const { token: otherToken } = await organizerToken(otherAccount);
+
+      expect((await publish(otherToken, id)).status).toBe(403);
+    });
+
+    it.each([
+      ['un identifiant qui n’est pas un UUID', 'abc'],
+      ['un UUID inconnu', '00000000-0000-0000-0000-000000000000'],
+    ])('répond 404 RFC 7807 pour %s, jamais 500', async (_label, id) => {
+      const { token } = await organizerToken();
+      const res = await publish(token, id);
+
+      expect(res.status).toBe(404);
+      expect(res.get('Content-Type')).toMatch(/^application\/problem\+json/);
+    });
   });
 });
