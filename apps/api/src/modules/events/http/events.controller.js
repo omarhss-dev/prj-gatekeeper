@@ -1,10 +1,23 @@
-import { Body, Controller, Inject, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ZodValidationPipe } from '../../../common/validation/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/http/jwt-auth.guard.js';
 import { Roles } from '../../auth/http/roles.decorator.js';
 import { RolesGuard } from '../../auth/http/roles.guard.js';
 import { EventsService } from '../core/events.service.js';
 import { createEventSchema } from './events.schemas.js';
+
+const eventIdPipe = new ParseUUIDPipe({ errorHttpStatusCode: 404 });
 
 @Controller('events')
 export class EventsController {
@@ -22,6 +35,14 @@ export class EventsController {
   create(req, body) {
     return this.events.create(req.user.userId, body);
   }
+
+  @Post(':id/publish')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(['organizer'])
+  publish(req, id) {
+    return this.events.publish(id, req.user.userId);
+  }
 }
 
 Inject(EventsService)(EventsController, undefined, 0);
@@ -32,3 +53,6 @@ Body(new ZodValidationPipe(createEventSchema))(
   'create',
   1,
 );
+
+Req()(EventsController.prototype, 'publish', 0);
+Param('id', eventIdPipe)(EventsController.prototype, 'publish', 1);

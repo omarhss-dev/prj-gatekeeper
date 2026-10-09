@@ -70,6 +70,50 @@ export class EventsRepository {
       return { ...toEvent(created), sections };
     });
   }
+
+  async publishDraft(eventId, organizerId) {
+    return withTransaction(this.pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE events
+         SET status = 'published', published_at = now()
+         WHERE id = $1 AND organizer_id = $2 AND status = 'draft'
+         RETURNING ${EVENT_COLUMNS}`,
+        [eventId, organizerId],
+      );
+      if (!rows[0]) return null;
+
+      // Tous les sièges en UNE instruction : une ligne par (section, rangée,
+      // siège). chr(64 + 1) = 'A' : la borne de 26 rangées (ck_sections_rows)
+      // garantit des lettres de A à Z. Libellés uniques par section
+      // (uq_seats_section_label) : A-1 existe dans chaque section.
+      const { rowCount } = await client.query(
+        `INSERT INTO event_seats (event_id, section_id, seat_label)
+         SELECT s.event_id, s.id, chr(64 + r) || '-' || n
+         FROM event_sections s
+         CROSS JOIN LATERAL generate_series(1, s.rows_count) AS r
+         CROSS JOIN LATERAL generate_series(1, s.seats_per_row) AS n
+         WHERE s.event_id = $1`,
+        [eventId],
+      );
+      // Un événement publié sans siège violerait un invariant que la base ne
+      // vérifie pas. Impossible par l'API (au moins une section, garantie par
+      // le schéma de création) : si c'arrive, c'est un bug, donc ROLLBACK.
+      if (rowCount === 0) {
+        throw new Error(`Publication sans aucun siège : événement ${eventId}`);
+      }
+
+      return { ...toEvent(rows[0]), seatCount: rowCount };
+    });
+  }
+
+  /** Un événement quel que soit son statut, sans ses sections. null s'il n'existe pas. */
+  async findById(eventId) {
+    const { rows } = await this.pool.query(
+      `SELECT ${EVENT_COLUMNS} FROM events WHERE id = $1`,
+      [eventId],
+    );
+    return rows[0] ? toEvent(rows[0]) : null;
+  }
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). */
