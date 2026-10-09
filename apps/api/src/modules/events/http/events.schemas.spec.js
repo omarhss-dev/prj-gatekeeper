@@ -1,4 +1,4 @@
-import { createEventSchema } from './events.schemas.js';
+import { catalogueQuerySchema, createEventSchema } from './events.schemas.js';
 
 // Dates lointaines : le refine « dans le futur » dépend de l'heure courante.
 const valid = {
@@ -110,5 +110,48 @@ describe('createEventSchema', () => {
     });
     expect(parsed).not.toHaveProperty('organizerId');
     expect(parsed).not.toHaveProperty('status');
+  });
+});
+
+describe('catalogueQuerySchema', () => {
+  it('applique les défauts du contrat : page 1, 20 par page', () => {
+    expect(catalogueQuerySchema.parse({})).toEqual({ page: 1, limit: 20 });
+  });
+
+  it("convertit les nombres de l'URL", () => {
+    expect(catalogueQuerySchema.parse({ page: '3', limit: '50' })).toEqual({
+      page: 3,
+      limit: 50,
+    });
+  });
+
+  it.each([
+    ['limit', '101', 'too_big'],
+    ['limit', '0', 'too_small'],
+    ['page', '1001', 'too_big'],
+    ['page', '1.5', 'invalid_type'],
+  ])('refuse %s=%s', (key, value, code) => {
+    const result = catalogueQuerySchema.safeParse({ [key]: value });
+    expect(
+      result.error.issues.map(({ path, code }) => ({ path, code })),
+    ).toEqual([{ path: [key], code }]);
+  });
+
+  it('refuse un intervalle vide ou inversé', () => {
+    const result = catalogueQuerySchema.safeParse({
+      from: '2099-06-01T00:00:00Z',
+      to: '2099-06-01T00:00:00Z',
+    });
+    expect(result.error.issues).toEqual([
+      expect.objectContaining({ path: ['to'], code: 'custom' }),
+    ]);
+  });
+
+  it("refuse un « + » devenu espace dans l'URL", () => {
+    // Ce que reçoit le serveur pour ?from=2099-06-01T20:00:00+01:00 non encodé.
+    expect(
+      catalogueQuerySchema.safeParse({ from: '2099-06-01T20:00:00 01:00' })
+        .success,
+    ).toBe(false);
   });
 });

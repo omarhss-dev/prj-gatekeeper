@@ -59,3 +59,48 @@ describe('EventsService.publish', () => {
     ).rejects.toMatchObject({ code: 'EVENT_ALREADY_PUBLISHED' });
   });
 });
+
+describe('EventsService.getPublished', () => {
+  it('lève une NotFoundError quand le repository ne trouve rien', async () => {
+    const repository = { findPublishedById: async () => null };
+    await expect(
+      new EventsService(repository).getPublished('e1'),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('EventsService.listCatalogue', () => {
+  /** Faux repository qui renvoie n lignes et retient ce qu'on lui a demandé. */
+  function repositoryReturning(n) {
+    const calls = [];
+    return {
+      calls,
+      findCatalogue: async (query) => {
+        calls.push(query);
+        return Array.from({ length: n }, (_, i) => ({ id: `e${i}` }));
+      },
+    };
+  }
+
+  it('demande limit + 1 lignes et calcule l’offset de la page', async () => {
+    const repository = repositoryReturning(0);
+    await new EventsService(repository).listCatalogue({ page: 3, limit: 20 });
+    expect(repository.calls[0]).toMatchObject({ limit: 21, offset: 40 });
+  });
+
+  it('hasNext vrai et ligne en trop retirée quand limit + 1 lignes reviennent', async () => {
+    const page = await new EventsService(repositoryReturning(21)).listCatalogue(
+      { page: 1, limit: 20 },
+    );
+    expect(page.items).toHaveLength(20);
+    expect(page.hasNext).toBe(true);
+  });
+
+  it('hasNext faux sur la dernière page', async () => {
+    const page = await new EventsService(repositoryReturning(20)).listCatalogue(
+      { page: 1, limit: 20 },
+    );
+    expect(page).toMatchObject({ page: 1, limit: 20, hasNext: false });
+    expect(page.items).toHaveLength(20);
+  });
+});

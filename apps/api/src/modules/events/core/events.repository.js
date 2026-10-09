@@ -7,6 +7,13 @@ const EVENT_COLUMNS = `id, organizer_id, name, description, city, venue, status,
   starts_at, sales_open_at, max_seats_per_reservation, published_at,
   created_at, updated_at`;
 
+/** Colonnes de la vue publique d'un événement (toPublicEvent). */
+const PUBLIC_EVENT_COLUMNS = `id, name, description, city, venue,
+  starts_at, sales_open_at, max_seats_per_reservation`;
+
+/** Colonnes d'une ligne du catalogue (toSummary). */
+const SUMMARY_COLUMNS = 'id, name, city, venue, starts_at, sales_open_at';
+
 /** Seul endroit du module où events et event_sections sont lus ou écrits. */
 @Injectable()
 export class EventsRepository {
@@ -71,6 +78,17 @@ export class EventsRepository {
     });
   }
 
+  /**
+   * Publie un brouillon et matérialise ses sièges, ou rien.
+   * Renvoie l'événement publié et le nombre de sièges, ou null si aucune ligne
+   * n'a été modifiée : événement inexistant, d'un autre organisateur, ou déjà
+   * publié. Le service lit ensuite l'événement pour savoir lequel.
+   *
+   * Pas de lecture préalable du statut : c'est le WHERE de l'UPDATE qui
+   * décide. Une publication concurrente attend le verrou de ligne posé ici,
+   * puis réévalue son WHERE sur la ligne commitée (READ COMMITTED), trouve
+   * status = 'published' et ne modifie rien. Aucune course possible.
+   */
   async publishDraft(eventId, organizerId) {
     return withTransaction(this.pool, async (client) => {
       const { rows } = await client.query(
@@ -95,6 +113,7 @@ export class EventsRepository {
          WHERE s.event_id = $1`,
         [eventId],
       );
+
       // Un événement publié sans siège violerait un invariant que la base ne
       // vérifie pas. Impossible par l'API (au moins une section, garantie par
       // le schéma de création) : si c'arrive, c'est un bug, donc ROLLBACK.
@@ -114,6 +133,67 @@ export class EventsRepository {
     );
     return rows[0] ? toEvent(rows[0]) : null;
   }
+
+  /**
+   * Un événement PUBLIÉ et ses sections, pour la lecture publique.
+   * null pour un brouillon comme pour un id inconnu : un brouillon n'existe
+   * pas pour le public (US-2).
+   *
+   * Deux requêtes, toujours deux quel que soit le nombre de sections : ce
+   * n'est pas un N+1. Sans transaction : les sections ne changent plus après
+   * la création, il n'y a rien d'incohérent à lire entre les deux.
+   */
+  async findPublishedById(eventId) {
+    const { rows } = await this.pool.query(
+      `SELECT ${PUBLIC_EVENT_COLUMNS} FROM events
+       WHERE id = $1 AND status = 'published'`,
+      [eventId],
+    );
+    if (!rows[0]) return null;
+
+    // Aucune colonne ne garde l'ordre de création des sections : on choisit
+    // un ordre stable et utile, de la plus chère à la moins chère.
+    const { rows: sectionRows } = await this.pool.query(
+      `SELECT id, name, price_cents, rows_count, seats_per_row
+       FROM event_sections
+       WHERE event_id = $1
+       ORDER BY price_cents DESC, name`,
+      [eventId],
+    );
+    return { ...toPublicEvent(rows[0]), sections: sectionRows.map(toSection) };
+  }
+
+  /**
+   * Une page du catalogue : événements publiés, à venir, triés par date.
+   *
+   * Filtres facultatifs en `($n IS NULL OR …)` : un seul texte SQL, sans
+   * concaténation. pg envoie une requête préparée sans nom, planifiée avec les
+   * valeurs réelles : Postgres élimine les conditions dont le paramètre est
+   * NULL (vérifié : Index Scan sur idx_events_catalogue).
+   *
+   * ORDER BY starts_at, id : sans le tie-breaker, deux événements à la même
+   * heure pourraient changer d'ordre d'une page à l'autre, et l'un d'eux
+   * apparaître deux fois ou jamais.
+   *
+   * Ville : sans tenir compte de la casse (lower des deux côtés). Les accents
+   * restent distincts (« Fès » ≠ « Fes ») : unaccent est une extension, à
+   * justifier et à autoriser sur Azure.
+   */
+  async findCatalogue({ city, from, to, limit, offset }) {
+    const { rows } = await this.pool.query(
+      `SELECT ${SUMMARY_COLUMNS}
+       FROM events
+       WHERE status = 'published'
+         AND starts_at > now()
+         AND ($1::text IS NULL OR lower(city) = lower($1))
+         AND ($2::timestamptz IS NULL OR starts_at >= $2)
+         AND ($3::timestamptz IS NULL OR starts_at < $3)
+       ORDER BY starts_at, id
+       LIMIT $4 OFFSET $5`,
+      [city ?? null, from ?? null, to ?? null, limit, offset],
+    );
+    return rows.map(toSummary);
+  }
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). */
@@ -132,6 +212,35 @@ function toEvent(row) {
     publishedAt: row.published_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Vue publique d'un événement : ni organisateur, ni statut (toujours
+ * « published » ici), ni horodatages internes.
+ */
+function toPublicEvent(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    city: row.city,
+    venue: row.venue,
+    startsAt: row.starts_at,
+    salesOpenAt: row.sales_open_at,
+    maxSeatsPerReservation: row.max_seats_per_reservation,
+  };
+}
+
+/** Une ligne du catalogue : ce qu'une liste affiche, sans description. */
+function toSummary(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    city: row.city,
+    venue: row.venue,
+    startsAt: row.starts_at,
+    salesOpenAt: row.sales_open_at,
   };
 }
 

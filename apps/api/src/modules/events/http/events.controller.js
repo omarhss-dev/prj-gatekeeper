@@ -1,12 +1,14 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Inject,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,8 +17,13 @@ import { JwtAuthGuard } from '../../auth/http/jwt-auth.guard.js';
 import { Roles } from '../../auth/http/roles.decorator.js';
 import { RolesGuard } from '../../auth/http/roles.guard.js';
 import { EventsService } from '../core/events.service.js';
-import { createEventSchema } from './events.schemas.js';
+import { catalogueQuerySchema, createEventSchema } from './events.schemas.js';
 
+/**
+ * Un :id qui n'est pas un UUID ne désigne aucun événement : 404, comme un
+ * UUID inconnu. Sans ce pipe, Postgres lèverait 22P02 (syntaxe uuid
+ * invalide), soit un 500 pour une simple faute de frappe dans l'URL.
+ */
 const eventIdPipe = new ParseUUIDPipe({ errorHttpStatusCode: 404 });
 
 @Controller('events')
@@ -24,6 +31,22 @@ export class EventsController {
   constructor(events) {
     this.events = events;
   }
+
+  /**
+   * Catalogue public : aucun guard. Un brouillon n'y apparaît jamais (US-2),
+   * c'est le WHERE de la requête qui le garantit.
+   */
+  @Get()
+  list(query) {
+    return this.events.listCatalogue(query);
+  }
+
+  /** Détail public d'un événement publié. Un brouillon répond 404. */
+  @Get(':id')
+  findOne(id) {
+    return this.events.getPublished(id);
+  }
+
   /**
    * Guards avant pipes, dans le cycle de vie Nest : un anonyme reçoit 401 et
    * un client 403 sans que leur corps soit jamais validé.
@@ -36,6 +59,10 @@ export class EventsController {
     return this.events.create(req.user.userId, body);
   }
 
+  /**
+   * 200 et non 201 (défaut de Nest pour un POST) : la publication ne crée pas
+   * de ressource adressable, elle change l'état d'une ressource existante.
+   */
   @Post(':id/publish')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -46,13 +73,19 @@ export class EventsController {
 }
 
 Inject(EventsService)(EventsController, undefined, 0);
-
+// Équivalents de @Req(), @Body(pipe), @Query(pipe) et @Param('id', pipe) : Babel ne lit
+// pas les décorateurs de paramètre (ADR-025).
 Req()(EventsController.prototype, 'create', 0);
 Body(new ZodValidationPipe(createEventSchema))(
   EventsController.prototype,
   'create',
   1,
 );
-
 Req()(EventsController.prototype, 'publish', 0);
+Query(new ZodValidationPipe(catalogueQuerySchema))(
+  EventsController.prototype,
+  'list',
+  0,
+);
+Param('id', eventIdPipe)(EventsController.prototype, 'findOne', 0);
 Param('id', eventIdPipe)(EventsController.prototype, 'publish', 1);
