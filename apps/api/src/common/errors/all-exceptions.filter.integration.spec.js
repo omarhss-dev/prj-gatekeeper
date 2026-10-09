@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AllExceptionsFilter } from './all-exceptions.filter.js';
 import { DomainError } from './domain-error.js';
+import { NotFoundError } from './not-found-error.js';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../validation/zod-validation.pipe.js';
 
@@ -23,6 +24,11 @@ class ThrowingController {
   @Post('body')
   body(payload) {
     return payload;
+  }
+
+  @Get('not-found')
+  notFound() {
+    throw new NotFoundError();
   }
 }
 // Équivalent de @Body(pipe) sur le paramètre 0 : Babel ne lit pas les
@@ -109,6 +115,14 @@ describe('AllExceptionsFilter (intégration HTTP)', () => {
       { path: ['password'], code: 'too_small' },
     ]);
     expect(res.body.correlationId).toBe(res.get('X-Correlation-Id'));
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("répond 404 à une NotFoundError, sans logger d'erreur", async () => {
+    const res = await request(server).get('/boom/not-found');
+
+    expect(res.status).toBe(404);
+    expect(res.body.type).toBe('about:blank');
     expect(errorSpy).not.toHaveBeenCalled();
   });
 });
