@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { STATUS_CODES } from 'node:http';
 import { Catch, HttpException, Logger } from '@nestjs/common';
 import { DomainError } from './domain-error.js';
+import { ForbiddenError } from './forbidden-error.js';
+import { NotFoundError } from './not-found-error.js';
 import { RequestValidationError } from './request-validation-error.js';
 /**
  * Seul point où un code métier rencontre HTTP.
@@ -49,12 +51,12 @@ export function toProblem(exception) {
     return { ...httpProblem(422), errors: exception.issues };
   }
 
-  // 422 : erreur du client, déjà tracée par la ligne pino-http.
-  if (exception instanceof RequestValidationError) return;
-
   if (exception instanceof HttpException) {
     return httpProblem(exception.getStatus());
   }
+
+  if (exception instanceof NotFoundError) return httpProblem(404);
+  if (exception instanceof ForbiddenError) return httpProblem(403);
 
   // Tout le reste est un bug : le client n'en apprend rien.
   return httpProblem(500);
@@ -96,6 +98,10 @@ export class AllExceptionsFilter {
     // 422 : erreur du client, déjà tracée par la ligne pino-http.
     if (exception instanceof RequestValidationError) return;
     // HttpException : déjà tracée par la ligne pino-http ou à la source (readiness).
+
+    if (exception instanceof NotFoundError) return;
+    if (exception instanceof ForbiddenError) return;
+
     if (exception instanceof HttpException) return;
 
     this.logger.error(exception);

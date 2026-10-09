@@ -23,7 +23,6 @@ export function createPool(config, logger) {
   pool.on('error', (err) => {
     logger.warn(`Connexion inactive du pool perdue : ${err.message}`);
   });
-  //test temporaire negative bien verifiee
 
   return pool;
 }

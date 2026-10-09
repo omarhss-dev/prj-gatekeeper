@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { DOMAIN_ERROR_CODES, DomainError } from './domain-error.js';
 import { toProblem } from './all-exceptions.filter.js';
+import { ForbiddenError } from './forbidden-error.js';
+import { NotFoundError } from './not-found-error.js';
 import { RequestValidationError } from './request-validation-error.js';
 
 describe('toProblem', () => {
@@ -73,6 +75,21 @@ describe('toProblem', () => {
       const problem = toProblem(new DomainError(code, 'x'));
       expect([409, 422]).toContain(problem.status);
       expect(problem.title).toEqual(expect.any(String));
+    },
+  );
+
+  it.each([
+    [new NotFoundError(), 404, 'Not Found'],
+    [new ForbiddenError(), 403, 'Forbidden'],
+  ])(
+    'traduit %s en about:blank, sans code ni message',
+    (exception, status, title) => {
+      expect(toProblem(exception)).toEqual({
+        type: 'about:blank',
+        title,
+        status,
+        detail: "La requête n'a pas pu être traitée.",
+      });
     },
   );
 
