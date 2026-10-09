@@ -266,4 +266,65 @@ describe('POST /api/v1/events (AppModule, vrai Postgres)', () => {
       );
     });
   });
+
+  describe('PATCH /api/v1/events/:id', () => {
+    const otherAccount = { ...account, email: 'autre@example.com' };
+
+    const patch = (token, id, body) => {
+      const req = request(server).patch(`/api/v1/events/${id}`).send(body);
+      return token ? req.set('Authorization', `Bearer ${token}`) : req;
+    };
+
+    it('modifie son brouillon : 200 et les champs fournis seulement', async () => {
+      const { token } = await organizerToken();
+      const { id } = (await createEvent(token)).body;
+
+      const res = await patch(token, id, { name: 'Concert reporté' });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        id,
+        name: 'Concert reporté',
+        city: newEvent.city,
+        status: 'draft',
+      });
+    });
+
+    it('répond 409 EVENT_ALREADY_PUBLISHED pour un événement publié', async () => {
+      const { token } = await organizerToken();
+      const { id } = (await createEvent(token)).body;
+      await request(server)
+        .post(`/api/v1/events/${id}/publish`)
+        .set('Authorization', `Bearer ${token}`);
+
+      const res = await patch(token, id, { name: 'Trop tard' });
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('EVENT_ALREADY_PUBLISHED');
+    });
+
+    it("répond 404 au brouillon d'un autre organisateur", async () => {
+      const { token: ownerToken } = await organizerToken();
+      const { id } = (await createEvent(ownerToken)).body;
+      const { token: otherToken } = await organizerToken(otherAccount);
+
+      expect((await patch(otherToken, id, { name: 'x' })).status).toBe(404);
+    });
+
+    it('répond 422 à un corps qui ne modifierait rien', async () => {
+      const { token } = await organizerToken();
+      const { id } = (await createEvent(token)).body;
+
+      const res = await patch(token, id, { status: 'published' });
+      expect(res.status).toBe(422);
+      expect(res.body.errors).toEqual([{ path: [], code: 'custom' }]);
+    });
+
+    it('répond 401 sans token', async () => {
+      const res = await patch(
+        undefined,
+        '00000000-0000-0000-0000-000000000000',
+        { name: 'x' },
+      );
+      expect(res.status).toBe(401);
+    });
+  });
 });

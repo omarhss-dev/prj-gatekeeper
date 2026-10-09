@@ -351,3 +351,66 @@ describe('EventsRepository — lectures publiques (vrai Postgres)', () => {
     ]);
   });
 });
+
+describe('EventsRepository.updateDraft (vrai Postgres)', () => {
+  let pool;
+  let events;
+  let organizerId;
+
+  beforeAll(() => {
+    pool = createTestPool();
+    events = new EventsRepository(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+  });
+
+  beforeEach(async () => {
+    await resetDatabase(pool);
+    organizerId = await insertUser(pool);
+  });
+
+  it('ne modifie que les champs fournis', async () => {
+    const created = await events.createWithSections(organizerId, {
+      ...newEvent,
+      description: 'Première description',
+    });
+
+    const updated = await events.updateDraft(created.id, organizerId, {
+      name: 'Nouveau nom',
+    });
+
+    expect(updated).toMatchObject({
+      name: 'Nouveau nom',
+      description: 'Première description',
+      city: newEvent.city,
+      startsAt: newEvent.startsAt,
+      status: 'draft',
+    });
+    expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(
+      created.updatedAt.getTime(),
+    );
+  });
+
+  it('renvoie null pour un événement publié, qui reste inchangé', async () => {
+    const { id } = await events.createWithSections(organizerId, newEvent);
+    await events.publishDraft(id, organizerId);
+
+    await expect(
+      events.updateDraft(id, organizerId, { name: 'Trop tard' }),
+    ).resolves.toBeNull();
+    await expect(events.findById(id)).resolves.toMatchObject({
+      name: newEvent.name,
+    });
+  });
+
+  it("renvoie null pour le brouillon d'un autre", async () => {
+    const { id } = await events.createWithSections(organizerId, newEvent);
+    const otherId = await insertUser(pool, 'autre@x.com');
+
+    await expect(
+      events.updateDraft(id, otherId, { name: 'Pas à moi' }),
+    ).resolves.toBeNull();
+  });
+});
