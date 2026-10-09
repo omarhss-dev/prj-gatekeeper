@@ -1,4 +1,8 @@
-import { catalogueQuerySchema, createEventSchema } from './events.schemas.js';
+import {
+  catalogueQuerySchema,
+  createEventSchema,
+  updateEventSchema,
+} from './events.schemas.js';
 
 // Dates lointaines : le refine « dans le futur » dépend de l'heure courante.
 const valid = {
@@ -153,5 +157,45 @@ describe('catalogueQuerySchema', () => {
       catalogueQuerySchema.safeParse({ from: '2099-06-01T20:00:00 01:00' })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('updateEventSchema', () => {
+  const issuesOf = (body) => {
+    const result = updateEventSchema.safeParse(body);
+    return result.success
+      ? []
+      : result.error.issues.map(({ path, code }) => ({ path, code }));
+  };
+
+  it('accepte un seul champ, sans ajouter de défaut', () => {
+    expect(updateEventSchema.parse({ name: 'Nouveau nom' })).toEqual({
+      name: 'Nouveau nom',
+    });
+  });
+
+  it('refuse un corps vide', () => {
+    expect(issuesOf({})).toEqual([{ path: [], code: 'custom' }]);
+  });
+
+  it('refuse un corps dont toutes les clés sont retirées (status)', () => {
+    expect(issuesOf({ status: 'published' })).toEqual([
+      { path: [], code: 'custom' },
+    ]);
+  });
+
+  it('refuse une date modifiée sans l’autre, en nommant celle qui manque', () => {
+    expect(issuesOf({ startsAt: '2099-06-01T20:00:00Z' })).toEqual([
+      { path: ['salesOpenAt'], code: 'custom' },
+    ]);
+  });
+
+  it('compare les deux dates quand elles sont fournies', () => {
+    expect(
+      issuesOf({
+        startsAt: '2099-06-01T20:00:00Z',
+        salesOpenAt: '2099-06-02T20:00:00Z',
+      }),
+    ).toEqual([{ path: ['salesOpenAt'], code: 'custom' }]);
   });
 });

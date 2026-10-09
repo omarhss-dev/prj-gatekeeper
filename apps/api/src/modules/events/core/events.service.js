@@ -29,7 +29,17 @@ export class EventsService {
 
     // Lecture de suivi : elle ne sert qu'à choisir le refus. L'UPDATE a déjà
     // tranché, et rien de ce qu'elle lit ne peut le défaire.
-    throw publishRefusal(await this.events.findById(eventId), userId);
+    throw draftRefusal(await this.events.findById(eventId), userId);
+  }
+
+  /**
+   * Modifie l'événement si c'est un brouillon de cet organisateur. Mêmes
+   * refus que la publication : les deux sont des écritures sur un brouillon.
+   */
+  async update(eventId, input, userId) {
+    const updated = await this.events.updateDraft(eventId, userId, input);
+    if (updated) return updated;
+    throw draftRefusal(await this.events.findById(eventId), userId);
   }
 
   /** Un événement publié et ses sections. 404 pour tout le reste. */
@@ -66,14 +76,15 @@ export class EventsService {
 }
 
 /**
- * Pourquoi une publication n'a rien modifié. Fonction pure, testable sans
- * base : même séparation que toProblem et loadConfig.
+ * Pourquoi une écriture sur un brouillon (publication, modification) n'a rien
+ * modifié. Fonction pure, testable sans base : même séparation que toProblem
+ * et loadConfig.
  *
  * Règle de visibilité : ce qui est invisible pour l'appelant répond 404, même
  * s'il existe. Un 403 sur le brouillon d'un autre révélerait son existence,
  * que GET /events/:id cache.
  */
-export function publishRefusal(event, userId) {
+export function draftRefusal(event, userId) {
   if (!event) return new NotFoundError();
 
   if (event.organizerId !== userId) {

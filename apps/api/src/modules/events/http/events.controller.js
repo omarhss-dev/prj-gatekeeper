@@ -7,6 +7,7 @@ import {
   Inject,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -17,7 +18,11 @@ import { JwtAuthGuard } from '../../auth/http/jwt-auth.guard.js';
 import { Roles } from '../../auth/http/roles.decorator.js';
 import { RolesGuard } from '../../auth/http/roles.guard.js';
 import { EventsService } from '../core/events.service.js';
-import { catalogueQuerySchema, createEventSchema } from './events.schemas.js';
+import {
+  catalogueQuerySchema,
+  createEventSchema,
+  updateEventSchema,
+} from './events.schemas.js';
 
 /**
  * Un :id qui n'est pas un UUID ne désigne aucun événement : 404, comme un
@@ -60,6 +65,18 @@ export class EventsController {
   }
 
   /**
+   * Modifie un brouillon de l'organisateur. Les sections ne se modifient pas,
+   * et un événement publié non plus (409) : c'est un engagement envers les
+   * acheteurs.
+   */
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(['organizer'])
+  update(req, id, body) {
+    return this.events.update(id, body, req.user.userId);
+  }
+
+  /**
    * 200 et non 201 (défaut de Nest pour un POST) : la publication ne crée pas
    * de ressource adressable, elle change l'état d'une ressource existante.
    */
@@ -89,3 +106,10 @@ Query(new ZodValidationPipe(catalogueQuerySchema))(
 );
 Param('id', eventIdPipe)(EventsController.prototype, 'findOne', 0);
 Param('id', eventIdPipe)(EventsController.prototype, 'publish', 1);
+Req()(EventsController.prototype, 'update', 0);
+Param('id', eventIdPipe)(EventsController.prototype, 'update', 1);
+Body(new ZodValidationPipe(updateEventSchema))(
+  EventsController.prototype,
+  'update',
+  2,
+);

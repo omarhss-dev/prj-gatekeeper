@@ -125,6 +125,47 @@ export class EventsRepository {
     });
   }
 
+  /**
+   * Modifie un brouillon. Renvoie l'événement modifié, ou null si aucune ligne
+   * ne l'a été : même règle et même WHERE que publishDraft.
+   *
+   * COALESCE($n, colonne) : un champ absent du corps arrive en NULL et laisse
+   * la colonne telle quelle. Correct parce que toutes ces colonnes sont
+   * NOT NULL, donc NULL ne peut jamais être une valeur voulue. La seule
+   * colonne facultative, description, ne peut donc pas être effacée par
+   * PATCH, seulement remplacée (limite assumée).
+   *
+   * Une seule instruction : pas de transaction. Si une publication s'exécute
+   * en même temps, l'une attend le verrou de ligne de l'autre, et le WHERE
+   * réévalué empêche de modifier un événement qui vient d'être publié.
+   */
+  async updateDraft(eventId, organizerId, patch) {
+    const { rows } = await this.pool.query(
+      `UPDATE events
+       SET name = COALESCE($3, name),
+           description = COALESCE($4, description),
+           city = COALESCE($5, city),
+           venue = COALESCE($6, venue),
+           starts_at = COALESCE($7, starts_at),
+           sales_open_at = COALESCE($8, sales_open_at),
+           max_seats_per_reservation = COALESCE($9, max_seats_per_reservation)
+       WHERE id = $1 AND organizer_id = $2 AND status = 'draft'
+       RETURNING ${EVENT_COLUMNS}`,
+      [
+        eventId,
+        organizerId,
+        patch.name ?? null,
+        patch.description ?? null,
+        patch.city ?? null,
+        patch.venue ?? null,
+        patch.startsAt ?? null,
+        patch.salesOpenAt ?? null,
+        patch.maxSeatsPerReservation ?? null,
+      ],
+    );
+    return rows[0] ? toEvent(rows[0]) : null;
+  }
+
   /** Un événement quel que soit son statut, sans ses sections. null s'il n'existe pas. */
   async findById(eventId) {
     const { rows } = await this.pool.query(

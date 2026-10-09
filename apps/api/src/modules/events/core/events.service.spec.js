@@ -1,35 +1,35 @@
 import { DomainError } from '../../../common/errors/domain-error.js';
 import { ForbiddenError } from '../../../common/errors/forbidden-error.js';
 import { NotFoundError } from '../../../common/errors/not-found-error.js';
-import { EventsService, publishRefusal } from './events.service.js';
+import { EventsService, draftRefusal } from './events.service.js';
 
 const OWNER = 'owner-id';
 const OTHER = 'other-id';
 const event = (status) => ({ id: 'e1', organizerId: OWNER, status });
 
-describe('publishRefusal', () => {
+describe('draftRefusal', () => {
   it('404 pour un événement inexistant', () => {
-    expect(publishRefusal(null, OWNER)).toBeInstanceOf(NotFoundError);
+    expect(draftRefusal(null, OWNER)).toBeInstanceOf(NotFoundError);
   });
 
   it("404 pour le brouillon d'un autre : son existence ne doit pas fuir", () => {
-    expect(publishRefusal(event('draft'), OTHER)).toBeInstanceOf(NotFoundError);
+    expect(draftRefusal(event('draft'), OTHER)).toBeInstanceOf(NotFoundError);
   });
 
   it("403 pour l'événement publié d'un autre", () => {
-    expect(publishRefusal(event('published'), OTHER)).toBeInstanceOf(
+    expect(draftRefusal(event('published'), OTHER)).toBeInstanceOf(
       ForbiddenError,
     );
   });
 
   it('EVENT_ALREADY_PUBLISHED pour son propre événement déjà publié', () => {
-    const refusal = publishRefusal(event('published'), OWNER);
+    const refusal = draftRefusal(event('published'), OWNER);
     expect(refusal).toBeInstanceOf(DomainError);
     expect(refusal.code).toBe('EVENT_ALREADY_PUBLISHED');
   });
 
   it('EVENT_NOT_AVAILABLE pour son propre événement annulé', () => {
-    expect(publishRefusal(event('cancelled'), OWNER).code).toBe(
+    expect(draftRefusal(event('cancelled'), OWNER).code).toBe(
       'EVENT_NOT_AVAILABLE',
     );
   });
@@ -102,5 +102,30 @@ describe('EventsService.listCatalogue', () => {
     );
     expect(page).toMatchObject({ page: 1, limit: 20, hasNext: false });
     expect(page.items).toHaveLength(20);
+  });
+});
+
+describe('EventsService.update', () => {
+  it("renvoie l'événement modifié sans relire la base", async () => {
+    const updated = { ...event('draft'), name: 'Nouveau' };
+    const repository = {
+      updateDraft: async () => updated,
+      findById: async () => {
+        throw new Error('findById ne doit pas être appelé');
+      },
+    };
+    await expect(
+      new EventsService(repository).update('e1', { name: 'Nouveau' }, OWNER),
+    ).resolves.toBe(updated);
+  });
+
+  it('lève les mêmes refus que la publication', async () => {
+    const repository = {
+      updateDraft: async () => null,
+      findById: async () => event('published'),
+    };
+    await expect(
+      new EventsService(repository).update('e1', { name: 'x' }, OWNER),
+    ).rejects.toMatchObject({ code: 'EVENT_ALREADY_PUBLISHED' });
   });
 });
