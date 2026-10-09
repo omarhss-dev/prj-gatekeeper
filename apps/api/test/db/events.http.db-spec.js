@@ -213,4 +213,57 @@ describe('POST /api/v1/events (AppModule, vrai Postgres)', () => {
       expect(res.get('Content-Type')).toMatch(/^application\/problem\+json/);
     });
   });
+
+  describe('GET /api/v1/events et /api/v1/events/:id (publics)', () => {
+    async function publishedEvent() {
+      const { token } = await organizerToken();
+      const { id } = (await createEvent(token)).body;
+      await request(server)
+        .post(`/api/v1/events/${id}/publish`)
+        .set('Authorization', `Bearer ${token}`);
+      return { id, token };
+    }
+
+    it('sert le catalogue sans token, sans les brouillons', async () => {
+      const { id, token } = await publishedEvent();
+      await createEvent(token, { ...newEvent, name: 'Brouillon' });
+
+      const res = await request(server).get('/api/v1/events');
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ page: 1, limit: 20, hasNext: false });
+      expect(res.body.items.map((item) => item.id)).toEqual([id]);
+      expect(res.body.items[0]).not.toHaveProperty('organizerId');
+    });
+
+    it('répond 422 avec le paramètre fautif', async () => {
+      const res = await request(server).get('/api/v1/events?limit=101');
+      expect(res.status).toBe(422);
+      expect(res.body.errors).toEqual([{ path: ['limit'], code: 'too_big' }]);
+    });
+
+    it('sert le détail d’un événement publié, avec ses sections', async () => {
+      const { id } = await publishedEvent();
+      const res = await request(server).get(`/api/v1/events/${id}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.sections).toHaveLength(2);
+      expect(res.body).not.toHaveProperty('organizerId');
+    });
+
+    it('répond 404 pour un brouillon, même à son organisateur', async () => {
+      const { token } = await organizerToken();
+      const { id } = (await createEvent(token)).body;
+
+      const res = await request(server)
+        .get(`/api/v1/events/${id}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('répond 404 pour un identifiant qui n’est pas un UUID', async () => {
+      expect((await request(server).get('/api/v1/events/abc')).status).toBe(
+        404,
+      );
+    });
+  });
 });
