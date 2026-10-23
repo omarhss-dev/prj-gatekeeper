@@ -18,6 +18,7 @@ module.exports = {
         "health",
         "errors",
         "events",
+        "reservations",
       ],
     ],
   },
