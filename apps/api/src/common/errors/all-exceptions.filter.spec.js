@@ -58,6 +58,41 @@ describe('toProblem', () => {
     );
   });
 
+  it("ajoute les extensions d'une DomainError au problème", () => {
+    const problem = toProblem(
+      new DomainError('SEAT_UNAVAILABLE', '1 siège est pris.', {
+        seatIds: ['s1'],
+      }),
+    );
+    expect(problem).toEqual({
+      type: 'https://gatekeeper.dev/errors/seat-unavailable',
+      title: 'Seat unavailable',
+      status: 409,
+      detail: '1 siège est pris.',
+      code: 'SEAT_UNAVAILABLE',
+      seatIds: ['s1'],
+    });
+  });
+
+  it('ne laisse aucune extension écraser un membre standard', () => {
+    const problem = toProblem(
+      new DomainError('SEAT_UNAVAILABLE', 'vrai detail', {
+        type: 'faux',
+        title: 'faux',
+        status: 200,
+        detail: 'faux',
+        code: 'FAUX',
+      }),
+    );
+    expect(problem).toEqual({
+      type: 'https://gatekeeper.dev/errors/seat-unavailable',
+      title: 'Seat unavailable',
+      status: 409,
+      detail: 'vrai detail',
+      code: 'SEAT_UNAVAILABLE',
+    });
+  });
+
   it("ne laisse rien sortir d'une exception inconnue", () => {
     const problem = toProblem(new Error('relation "tickets" does not exist'));
     expect(problem.status).toBe(500);

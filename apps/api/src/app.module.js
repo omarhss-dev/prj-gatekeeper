@@ -9,6 +9,7 @@ import { APP_FILTER, RouterModule } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { EventsModule } from './modules/events/events.module.js';
+import { ReservationsModule } from './modules/reservations/reservations.module.js';
 @Module({})
 export class AppModule {
   static forRoot(config) {
@@ -53,9 +54,11 @@ export class AppModule {
         HealthModule,
         authModule,
         EventsModule.forRoot(authModule),
+        ReservationsModule.forRoot(authModule),
         RouterModule.register([
           { path: 'api/v1', module: AuthModule },
           { path: 'api/v1', module: EventsModule },
+          { path: 'api/v1', module: ReservationsModule },
         ]),
       ],
     };

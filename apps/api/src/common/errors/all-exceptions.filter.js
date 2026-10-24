@@ -39,6 +39,7 @@ export function toProblem(exception) {
   if (exception instanceof DomainError) {
     const { status, title } = DOMAIN_ERROR_HTTP[exception.code];
     return {
+      ...exception.extensions,
       type: `https://gatekeeper.dev/errors/${exception.code.toLowerCase().replaceAll('_', '-')}`,
       title,
       status,

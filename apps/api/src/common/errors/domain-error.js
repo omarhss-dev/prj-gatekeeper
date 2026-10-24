@@ -23,8 +23,11 @@ export class DomainError extends Error {
    *             le domaine ne connaît pas HTTP.
    * @param detail Renvoyé tel quel au client.
    *               Jamais de SQL, de nom de table ni de message technique.
+   * @param extensions Données structurées ajoutées au corps RFC 7807
+   *                   (ex. { seatIds } pour SEAT_UNAVAILABLE). Construites
+   *                   par notre code, jamais recopiées d'une erreur pg.
    */
-  constructor(code, detail) {
+  constructor(code, detail, extensions = {}) {
     super(detail);
 
     if (!DOMAIN_ERROR_CODES.includes(code)) {
@@ -32,5 +35,7 @@ export class DomainError extends Error {
     }
 
     this.code = code;
+
+    this.extensions = Object.freeze({ ...extensions });
   }
 }
