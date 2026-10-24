@@ -69,6 +69,23 @@ describe('EventsService.getPublished', () => {
   });
 });
 
+describe('EventsService.getSeatMap', () => {
+  it('lève une NotFoundError quand le repository ne trouve rien', async () => {
+    const repository = { findSeatMap: async () => null };
+    await expect(
+      new EventsService(repository).getSeatMap('e1'),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('renvoie le plan de salle tel que le repository le construit', async () => {
+    const seatMap = { eventId: 'e1', sections: [] };
+    const repository = { findSeatMap: async () => seatMap };
+    await expect(new EventsService(repository).getSeatMap('e1')).resolves.toBe(
+      seatMap,
+    );
+  });
+});
+
 describe('EventsService.listCatalogue', () => {
   /** Faux repository qui renvoie n lignes et retient ce qu'on lui a demandé. */
   function repositoryReturning(n) {
