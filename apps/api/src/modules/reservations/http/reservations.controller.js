@@ -1,8 +1,22 @@
-import { Body, Controller, Inject, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ZodValidationPipe } from '../../../common/validation/zod-validation.pipe.js';
 import { JwtAuthGuard } from '../../auth/http/jwt-auth.guard.js';
 import { ReservationsService } from '../core/reservations.service.js';
 import { createReservationSchema } from './reservations.schemas.js';
+
+const reservationIdPipe = new ParseUUIDPipe({ errorHttpStatusCode: 404 });
 
 @Controller('reservations')
 export class ReservationsController {
@@ -21,6 +35,13 @@ export class ReservationsController {
   create(req, body) {
     return this.reservations.reserve(req.user.userId, body);
   }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_Content)
+  @UseGuards(JwtAuthGuard)
+  cancel(req, id) {
+    return this.reservations.cancel(id, req.user.userId);
+  }
 }
 
 Inject(ReservationsService)(ReservationsController, undefined, 0);
@@ -32,3 +53,5 @@ Body(new ZodValidationPipe(createReservationSchema))(
   'create',
   1,
 );
+Req()(ReservationsController.prototype, 'cancel', 0);
+Param('id', reservationIdPipe)(ReservationsController.prototype, 'cancel', 1);

@@ -112,6 +112,56 @@ export class ReservationsRepository {
       throw error;
     }
   }
+
+  /**
+   * Annule la réservation et libère ses sièges, ou ne fait rien.
+   * Renvoie true si elle a été annulée, false sinon : inexistante, d'un autre
+   * acheteur, déjà annulée, ou événement commencé. Le service relit pour
+   * savoir laquelle (findForCancellation).
+   *
+   * Même principe que publishDraft (ADR-032) : aucune lecture avant
+   * l'écriture, toutes les règles sont dans le WHERE. Un DELETE concurrent
+   * attend le verrou de ligne, puis réévalue son WHERE et ne modifie rien.
+   * « Pas encore commencé » est jugé avec now() : une seule horloge, celle de
+   * la base.
+   *
+   * Les billets passent en cancelled dans la même transaction : ils sortent
+   * de l'index partiel uq_tickets_active_seat, et les sièges redeviennent
+   * réservables au COMMIT. Rien n'est supprimé : l'historique reste.
+   */
+  async cancel(reservationId, userId) {
+    return withTransaction(this.pool, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE reservations r
+         SET status = 'cancelled', cancelled_at = now()
+         FROM events e
+         WHERE r.id = $1 AND r.user_id = $2 AND r.status = 'confirmed'
+           AND e.id = r.event_id AND e.starts_at > now()`,
+        [reservationId, userId],
+      );
+      if (rowCount === 0) return false;
+
+      await client.query(
+        `UPDATE tickets SET status = 'cancelled'
+        WHERE reservation_id = $1 AND status = 'active'`,
+        [reservationId],
+      );
+      return true;
+    });
+  }
+
+  /**
+   * Relecture de suivi, quand cancel n'a rien modifié : à qui est la
+   * réservation, et dans quel état. null si elle n'existe pas.
+   */
+  async findForCancellation(reservationId) {
+    const { rows } = await this.pool.query(
+      `SELECT user_id, status FROM  reservations WHERE id = $1`,
+      [reservationId],
+    );
+    const row = rows[0];
+    return row ? { userId: row.user_id, status: row.status } : null;
+  }
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). */

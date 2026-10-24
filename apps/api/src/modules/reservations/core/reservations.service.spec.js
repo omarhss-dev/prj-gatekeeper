@@ -3,6 +3,7 @@ import { NotFoundError } from '../../../common/errors/not-found-error.js';
 import {
   ReservationsService,
   reservationRefusal,
+  cancellationRefusal,
 } from './reservations.service.js';
 
 const NOW = new Date('2099-06-01T12:00:00Z');
@@ -112,5 +113,70 @@ describe('ReservationsService.reserve', () => {
       new ReservationsService(repository).reserve('u1', input),
     ).resolves.toBe(reservation);
     expect(calls).toEqual([['u1', 'e1', ['s1', 's2']]]);
+  });
+});
+
+describe('cancellationRefusal', () => {
+  const BUYER = 'buyer-id';
+  const reservation = (status, userId = BUYER) => ({ userId, status });
+
+  it('404 pour une réservation inexistante', () => {
+    expect(cancellationRefusal(null, BUYER)).toBeInstanceOf(NotFoundError);
+  });
+
+  it("404 pour la réservation d'un autre : son existence ne doit pas fuir", () => {
+    expect(
+      cancellationRefusal(reservation('confirmed', 'autre'), BUYER),
+    ).toBeInstanceOf(NotFoundError);
+  });
+
+  it("404 pour la réservation déjà annulée d'un autre", () => {
+    expect(
+      cancellationRefusal(reservation('cancelled', 'autre'), BUYER),
+    ).toBeInstanceOf(NotFoundError);
+  });
+
+  it('null pour sa propre réservation déjà annulée : DELETE est idempotent', () => {
+    expect(cancellationRefusal(reservation('cancelled'), BUYER)).toBeNull();
+  });
+
+  it('RESERVATION_NOT_CANCELLABLE pour sa réservation confirmée', () => {
+    expect(cancellationRefusal(reservation('confirmed'), BUYER).code).toBe(
+      'RESERVATION_NOT_CANCELLABLE',
+    );
+  });
+});
+
+describe('ReservationsService.cancel', () => {
+  it("ne relit pas la base quand l'annulation a réussi", async () => {
+    const repository = {
+      cancel: async () => true,
+      findForCancellation: async () => {
+        throw new Error('findForCancellation ne doit pas être appelé');
+      },
+    };
+    await expect(
+      new ReservationsService(repository).cancel('r1', 'u1'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('réussit aussi quand la réservation était déjà annulée', async () => {
+    const repository = {
+      cancel: async () => false,
+      findForCancellation: async () => ({ userId: 'u1', status: 'cancelled' }),
+    };
+    await expect(
+      new ReservationsService(repository).cancel('r1', 'u1'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('lève le refus calculé à partir de la relecture', async () => {
+    const repository = {
+      cancel: async () => false,
+      findForCancellation: async () => ({ userId: 'u1', status: 'confirmed' }),
+    };
+    await expect(
+      new ReservationsService(repository).cancel('r1', 'u1'),
+    ).rejects.toMatchObject({ code: 'RESERVATION_NOT_CANCELLABLE' });
   });
 });
