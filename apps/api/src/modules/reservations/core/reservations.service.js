@@ -101,7 +101,7 @@ export function cancellationRefusal(reservation, userId) {
 
   return new DomainError(
     'RESERVATION_NOT_CANCELLABLE',
-    "l'evenement a deja commence : la reservation me peux plus etre annulee.",
+    "L'événement a déjà commencé : la réservation ne peut plus être annulée. ",
   );
 }
 

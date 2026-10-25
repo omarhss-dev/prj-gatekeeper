@@ -37,7 +37,7 @@ export class ReservationsController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_Content)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
   cancel(req, id) {
     return this.reservations.cancel(id, req.user.userId);
