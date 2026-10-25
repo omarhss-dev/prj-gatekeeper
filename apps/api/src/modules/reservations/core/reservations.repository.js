@@ -162,6 +162,61 @@ export class ReservationsRepository {
     const row = rows[0];
     return row ? { userId: row.user_id, status: row.status } : null;
   }
+
+  async findByUser(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT r.id, r.status, r.total_cents, r.created_at, r.cancelled_at,
+              e.id AS event_id, e.name AS event_name, e.city, e.venue,
+              e.starts_at,
+              t.code, t.status AS ticket_status, t.price_cents,
+              sec.name AS section_name, s.seat_label
+       FROM reservations r
+       JOIN events e ON e.id = r.event_id
+       JOIN tickets t ON t.reservation_id = r.id
+       JOIN event_seats s ON s.id = t.event_seat_id
+       JOIN event_sections sec ON sec.id = s.section_id
+       WHERE r.user_id = $1
+       ORDER BY r.created_at DESC, r.id,
+                sec.price_cents DESC, sec.name,
+                split_part(s.seat_label, '-', 1),
+                split_part(s.seat_label, '-', 2)::int`,
+      [userId],
+    );
+    return groupTicketsByReservation(rows);
+  }
+}
+
+function groupTicketsByReservation(rows) {
+  const reservations = [];
+  for (const row of rows) {
+    let reservation = reservations.at(-1);
+    if (reservation?.id !== row.id) {
+      reservation = {
+        id: row.id,
+        status: row.status,
+        totalCents: row.total_cents,
+        createdAt: row.created_at,
+        cancelledAt: row.cancelled_at,
+        event: {
+          id: row.event_id,
+          name: row.event_name,
+          city: row.city,
+          venue: row.venue,
+          startsAt: row.starts_at,
+        },
+        tickets: [],
+      };
+      reservations.push(reservation);
+    }
+    reservation.tickets.push({
+      code: row.code,
+      status: row.ticket_status,
+      priceCents: row.price_cents,
+      section: row.section_name,
+      seat: row.seat_label,
+    });
+  }
+  return reservations;
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). */

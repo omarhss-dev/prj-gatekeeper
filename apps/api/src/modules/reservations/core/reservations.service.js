@@ -35,6 +35,10 @@ export class ReservationsService {
     return result.reservation;
   }
 
+  listMine(userId) {
+    return this.reservations.findByUser(userId);
+  }
+
   /**
    * Annule la réservation de cet acheteur. Ne renvoie rien : le controller
    * répond 204. Si rien n'a été annulé, la relecture choisit la réponse,
