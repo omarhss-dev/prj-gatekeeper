@@ -112,6 +112,111 @@ export class ReservationsRepository {
       throw error;
     }
   }
+
+  /**
+   * Annule la réservation et libère ses sièges, ou ne fait rien.
+   * Renvoie true si elle a été annulée, false sinon : inexistante, d'un autre
+   * acheteur, déjà annulée, ou événement commencé. Le service relit pour
+   * savoir laquelle (findForCancellation).
+   *
+   * Même principe que publishDraft (ADR-032) : aucune lecture avant
+   * l'écriture, toutes les règles sont dans le WHERE. Un DELETE concurrent
+   * attend le verrou de ligne, puis réévalue son WHERE et ne modifie rien.
+   * « Pas encore commencé » est jugé avec now() : une seule horloge, celle de
+   * la base.
+   *
+   * Les billets passent en cancelled dans la même transaction : ils sortent
+   * de l'index partiel uq_tickets_active_seat, et les sièges redeviennent
+   * réservables au COMMIT. Rien n'est supprimé : l'historique reste.
+   */
+  async cancel(reservationId, userId) {
+    return withTransaction(this.pool, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE reservations r
+         SET status = 'cancelled', cancelled_at = now()
+         FROM events e
+         WHERE r.id = $1 AND r.user_id = $2 AND r.status = 'confirmed'
+           AND e.id = r.event_id AND e.starts_at > now()`,
+        [reservationId, userId],
+      );
+      if (rowCount === 0) return false;
+
+      await client.query(
+        `UPDATE tickets SET status = 'cancelled'
+        WHERE reservation_id = $1 AND status = 'active'`,
+        [reservationId],
+      );
+      return true;
+    });
+  }
+
+  /**
+   * Relecture de suivi, quand cancel n'a rien modifié : à qui est la
+   * réservation, et dans quel état. null si elle n'existe pas.
+   */
+  async findForCancellation(reservationId) {
+    const { rows } = await this.pool.query(
+      `SELECT user_id, status FROM  reservations WHERE id = $1`,
+      [reservationId],
+    );
+    const row = rows[0];
+    return row ? { userId: row.user_id, status: row.status } : null;
+  }
+
+  async findByUser(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT r.id, r.status, r.total_cents, r.created_at, r.cancelled_at,
+              e.id AS event_id, e.name AS event_name, e.city, e.venue,
+              e.starts_at,
+              t.code, t.status AS ticket_status, t.price_cents,
+              sec.name AS section_name, s.seat_label
+       FROM reservations r
+       JOIN events e ON e.id = r.event_id
+       JOIN tickets t ON t.reservation_id = r.id
+       JOIN event_seats s ON s.id = t.event_seat_id
+       JOIN event_sections sec ON sec.id = s.section_id
+       WHERE r.user_id = $1
+       ORDER BY r.created_at DESC, r.id,
+                sec.price_cents DESC, sec.name,
+                split_part(s.seat_label, '-', 1),
+                split_part(s.seat_label, '-', 2)::int`,
+      [userId],
+    );
+    return groupTicketsByReservation(rows);
+  }
+}
+
+function groupTicketsByReservation(rows) {
+  const reservations = [];
+  for (const row of rows) {
+    let reservation = reservations.at(-1);
+    if (reservation?.id !== row.id) {
+      reservation = {
+        id: row.id,
+        status: row.status,
+        totalCents: row.total_cents,
+        createdAt: row.created_at,
+        cancelledAt: row.cancelled_at,
+        event: {
+          id: row.event_id,
+          name: row.event_name,
+          city: row.city,
+          venue: row.venue,
+          startsAt: row.starts_at,
+        },
+        tickets: [],
+      };
+      reservations.push(reservation);
+    }
+    reservation.tickets.push({
+      code: row.code,
+      status: row.ticket_status,
+      priceCents: row.price_cents,
+      section: row.section_name,
+      seat: row.seat_label,
+    });
+  }
+  return reservations;
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). */

@@ -34,6 +34,24 @@ export class ReservationsService {
     }
     return result.reservation;
   }
+
+  listMine(userId) {
+    return this.reservations.findByUser(userId);
+  }
+
+  /**
+   * Annule la réservation de cet acheteur. Ne renvoie rien : le controller
+   * répond 204. Si rien n'a été annulé, la relecture choisit la réponse,
+   * sans jamais rien défaire : l'UPDATE a déjà tranché.
+   */
+  async cancel(reservationId, userId) {
+    if (await this.reservations.cancel(reservationId, userId)) return;
+    const refusal = cancellationRefusal(
+      await this.reservations.findForCancellation(reservationId),
+      userId,
+    );
+    if (refusal) throw refusal;
+  }
 }
 
 /**
@@ -72,6 +90,19 @@ export function reservationRefusal(event, seatCount, now) {
   }
 
   return null;
+}
+
+export function cancellationRefusal(reservation, userId) {
+  if (!reservation || reservation.userId !== userId) return new NotFoundError();
+
+  // Déjà annulée : DELETE est idempotent. Un client qui réessaie après un
+  // timeout ne doit pas croire que son annulation a échoué (D5-a).
+  if (reservation.status === 'cancelled') return null;
+
+  return new DomainError(
+    'RESERVATION_NOT_CANCELLABLE',
+    "L'événement a déjà commencé : la réservation ne peut plus être annulée. ",
+  );
 }
 
 Inject(ReservationsRepository)(ReservationsService, undefined, 0);

@@ -235,6 +235,43 @@ export class EventsRepository {
     );
     return rows.map(toSummary);
   }
+
+  /**
+   * Le plan de salle d'un événement PUBLIÉ : chaque siège et sa
+   * disponibilité, groupés par section. null pour un brouillon comme pour un
+   * id inconnu (US-2, ADR-031). Jamais servi depuis un cache (US-4).
+   *
+   * Un siège est disponible s'il n'a aucun billet ACTIF : même condition que
+   * l'index partiel uq_tickets_active_seat. Un billet annulé libère donc le
+   * siège sans rien faire de plus. On ne dit jamais qui détient un billet.
+   *
+   * Coût mesuré (scripts/seats-explain.sql) : Postgres lit toute la table
+   * tickets pour un hash join, faute de colonne event_id dans tickets
+   * (ADR-024). Le temps croît avec le nombre total de billets en base, pas
+   * avec ceux de l'événement. Aucun index ne corrige cela : décision D6.
+   *
+   * Tri naturel des sièges : A-2 avant A-10. En texte, « A-10 » < « A-2 ».
+   * Le libellé est construit par la publication (rangée-numéro), d'où le
+   * split_part sûr. Sections dans le même ordre que findPublishedById.
+   */
+  async findSeatMap(eventId) {
+    const { rows } = await this.pool.query(
+      `SELECT sec.id AS section_id, sec.name, sec.price_cents,
+          s.id AS seat_id, s.seat_label,
+          (t.id IS NULL) AS available
+        FROM event_seats s
+        JOIN events e ON e.id = s.event_id AND e.status = 'published'
+        JOIN event_sections sec ON sec.id = s.section_id
+        LEFT JOIN tickets t ON t.event_seat_id = s.id AND t.status = 'active'
+        WHERE s.event_id = $1
+        ORDER BY sec.price_cents DESC, sec.name,
+          split_part(s.seat_label, '-', 1),
+          split_part(s.seat_label, '-', 2)::int`,
+      [eventId],
+    );
+    if (rows.length === 0) return null;
+    return { eventId, sections: groupSeatsBySection(rows) };
+  }
 }
 
 /** Ligne SQL (snake_case) → objet de l'app (camelCase). */
@@ -285,6 +322,32 @@ function toSummary(row) {
   };
 }
 
+/**
+ * Lignes triées par section → une entrée par section, avec ses sièges.
+ * Le nom et le prix de la section ne sont écrits qu'une fois, au lieu d'être
+ * répétés sur chaque siège (jusqu'à 31 200 fois).
+ */
+function groupSeatsBySection(rows) {
+  const sections = [];
+  for (const row of rows) {
+    let section = sections.at(-1);
+    if (section?.id !== row.section_id) {
+      section = {
+        id: row.section_id,
+        name: row.name,
+        priceCents: row.price_cents,
+        seats: [],
+      };
+      sections.push(section);
+    }
+    section.seats.push({
+      id: row.seat_id,
+      label: row.seat_label,
+      available: row.available,
+    });
+  }
+  return sections;
+}
 function toSection(row) {
   return {
     id: row.id,

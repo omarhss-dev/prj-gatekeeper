@@ -73,6 +73,13 @@ export class EventsService {
       hasNext: rows.length > limit,
     };
   }
+
+  /** Le plan de salle d'un événement publié. 404 pour tout le reste. */
+  async getSeatMap(eventId) {
+    const seatMap = await this.events.findSeatMap(eventId);
+    if (!seatMap) throw new NotFoundError();
+    return seatMap;
+  }
 }
 
 /**

@@ -53,6 +53,16 @@ export class EventsController {
   }
 
   /**
+   * Plan de salle public : chaque siège et sa disponibilité, sans dire qui
+   * détient un billet (US-4). Jamais mis en cache : c'est la donnée qui
+   * change le plus vite. Un brouillon répond 404.
+   */
+  @Get(':id/seats')
+  findSeats(id) {
+    return this.events.getSeatMap(id);
+  }
+
+  /**
    * Guards avant pipes, dans le cycle de vie Nest : un anonyme reçoit 401 et
    * un client 403 sans que leur corps soit jamais validé.
    * L'organisateur vient du token (req.user), jamais du corps.
@@ -108,6 +118,7 @@ Param('id', eventIdPipe)(EventsController.prototype, 'findOne', 0);
 Param('id', eventIdPipe)(EventsController.prototype, 'publish', 1);
 Req()(EventsController.prototype, 'update', 0);
 Param('id', eventIdPipe)(EventsController.prototype, 'update', 1);
+Param('id', eventIdPipe)(EventsController.prototype, 'findSeats', 0);
 Body(new ZodValidationPipe(updateEventSchema))(
   EventsController.prototype,
   'update',
