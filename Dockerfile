@@ -1,3 +1,4 @@
+# --- build
 ARG NODE_VERSION=26
 
 FROM node:${NODE_VERSION}-alpine AS build
@@ -11,6 +12,14 @@ COPY apps/api/babel.config.cjs apps/api/
 COPY apps/api/src apps/api/src
 RUN npm run build -w apps/api
 
+# --- migrate
+FROM build AS migrate
+COPY apps/api/migrations apps/api/migrations
+USER node
+WORKDIR /app/apps/api
+CMD ["node", "../../node_modules/.bin/node-pg-migrate", "up"]
+
+# --- runtime
 FROM node:${NODE_VERSION}-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app

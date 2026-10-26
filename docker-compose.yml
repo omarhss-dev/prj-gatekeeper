@@ -1,3 +1,4 @@
+x-database-url: &database-url postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
 services:
   #----------------------postgres--------------------------------------
   postgres:
@@ -29,6 +30,47 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - gatekeeper_net
+
+#--------------------migrate-------------------------------
+  migrate: 
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gatekeeper_net
+
+#--------------------api-----------------------------------
+  api:
+    build:
+      context: .
+      target: runtime
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: *database-url
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-3600}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - gatekeeper_net
 
