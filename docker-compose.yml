@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "${DB_PORT:-5432}:5432" #format complet est IP_hôte:port_hôte:port_conteneur
+      - "127.0.0.1:${DB_PORT:-5432}:5432" #format complet est IP_hôte:port_hôte:port_conteneur
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
