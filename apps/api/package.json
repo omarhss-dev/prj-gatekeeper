@@ -6,6 +6,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.9"
+  },
   "scripts": {
     "build": "babel src --out-dir dist --delete-dir-on-start --ignore \"src/**/*.spec.js\"",
     "deploy": "nest deploy",

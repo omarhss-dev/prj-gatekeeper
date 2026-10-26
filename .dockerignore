@@ -1,0 +1,10 @@
+*
+!package.json
+!package-lock.json
+!apps/api/package.json
+
+!apps/api/babel.config.cjs
+!apps/api/src
+!apps/api/migrations
+
+**/*.spec.js
