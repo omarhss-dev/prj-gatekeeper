@@ -60,3 +60,41 @@ jobs:
 
       - name: Test d'integration (testcontainers)
         run: npm run test:db -w apps/api
+
+  history:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Récupérer le code (historique complet)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Installer Node (version de .nvmrc)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci --ignore-scripts
+
+      - name: Messages de commit (commitlint)
+        run: |
+          FORK_POINT=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          npx commitlint --from "$FORK_POINT" --to "$HEAD_SHA" --verbose
+
+      - name: Migrations déjà mergées inchangées
+        run: |
+          FORK_POINT=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          changed=$(git diff --no-renames --name-only --diff-filter=MD "$FORK_POINT" "$HEAD_SHA" -- apps/api/migrations)
+          if [ -n "$changed" ]; then
+            echo "::error::Migration déjà mergée modifiée ou supprimée (ADR-021) :"
+            echo "$changed"
+            exit 1
+          fi
