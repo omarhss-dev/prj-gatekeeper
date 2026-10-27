@@ -13,6 +13,7 @@
     "build": "babel src --out-dir dist --delete-dir-on-start --ignore \"src/**/*.spec.js\"",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"test/**/*.js\"",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
