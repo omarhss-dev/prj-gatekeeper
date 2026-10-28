@@ -98,3 +98,43 @@ jobs:
             echo "$changed"
             exit 1
           fi
+  image:
+    needs: [verify, integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Generer des identifiants jetables
+        run: |
+          {
+            echo "DB_USER=gatekeeper"
+            echo "DB_NAME=gatekeeper"
+            echo "DB_PORT=5433"
+            echo "DB_PASSWORD=$(openssl rand -hex 16)"
+            echo "JWT_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
+
+      - name: Construire les images (version de Node de .nvmrc)
+        run: docker compose build --build-arg NODE_VERSION="$(cat .nvmrc)"
+
+      - name: Demarer la pile
+        run: docker compose up -d --no-build
+
+      - name: Attendre que l'API soit persist
+        run: curl --fail --silent --show-error --retry 30 --retry-delay 2 --retry-all-errors http://127.0.0.1:3000/health/ready
+
+      - name: Smoke test (route metier)
+        run: curl --fail --silent --show-error http://127.0.0.1:3000/api/v1/events | grep -q '"items"'
+
+      - name: Verifier l'utilisateur non-root
+        run: test "$(docker compose exec -T api whoami)" = "node"
+
+      - name: Journaux en cas d'echec
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail 200
