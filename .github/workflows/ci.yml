@@ -121,6 +121,20 @@ jobs:
       - name: Construire les images (version de Node de .nvmrc)
         run: docker compose build --build-arg NODE_VERSION="$(cat .nvmrc)"
 
+      - name: Reperer l'image de l'API
+        run: echo "API_IMAGE=$(docker compose config --images | grep -- '-api$')" >> "$GITHUB_ENV"
+
+      - name: Scanner l'image (trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.API_IMAGE}}
+          version: v0.70.0
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+          trivyignores: .trivyignore.yaml
+
       - name: Demarer la pile
         run: docker compose up -d --no-build
 
