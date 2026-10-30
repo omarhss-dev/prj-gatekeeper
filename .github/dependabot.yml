@@ -15,3 +15,7 @@ updates:
     commit-message:
       prefix: "chore(api)"
     open-pull-requests-limit: 3
+    groups:
+      nestjs:
+        patterns:
+          - "@nestjs/*"
