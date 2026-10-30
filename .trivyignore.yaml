@@ -33,10 +33,4 @@ vulnerabilities:
       - usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json
     expired_at: 2027-01-15
     statement: brace-expansion embarqué dans le npm de l'image de base, non exécuté.
-  # multer est figé à 2.4.0 par @nestjs/platform-express 12.0.3.
-  # Le corriger demande de monter NestJS ; aucun endpoint d'upload n'existe.
-  - id: CVE-2026-113872
-    paths:
-      - app/node_modules/multer/package.json
-    expired_at: 2027-01-15
-    statement: multer figé par NestJS, aucun endpoint d'upload dans l'API.
+  
