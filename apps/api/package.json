@@ -29,7 +29,7 @@
     "test:db": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand --testRegex \".*\\\\.db-spec\\\\.js$\" --globalSetup ./test/db/global-setup.js --globalTeardown ./test/db/global-teardown.js"
   },
   "dependencies": {
-    "@nestjs/common": "^12.0.1",
+    "@nestjs/common": "^12.3.2",
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
     "argon2": "^0.45.1",
