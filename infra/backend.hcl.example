@@ -1,0 +1,3 @@
+storage_account_name = "gkstate00000000"
+container_name       = "tfstate"
+key                  = "dev.tfstate"
