@@ -10,3 +10,14 @@ coverage/
 *.key
 .DS_Store
 .directory
+
+.terraform/
+
+*.tfvars
+*.tfvars.json
+
+*.tfplan
+crash.log
+crash.*.log
+
+backend.hcl
