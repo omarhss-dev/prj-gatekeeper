@@ -13,7 +13,7 @@ resource "azurerm_postgresql_flexible_server" "main" {
 
   administrator_login               = local.db_admin_login
   administrator_password_wo         = ephemeral.random_password.db.result
-  administrator_password_wo_version = 1
+  administrator_password_wo_version = local.db_password_version
 
   public_network_access_enabled = true
   tags                          = local.tags

@@ -8,8 +8,12 @@ resource "azurerm_key_vault_secret" "db_password" {
   name             = "db-admin-password"
   key_vault_id     = azurerm_key_vault.main.id
   value_wo         = ephemeral.random_password.db.result
-  value_wo_version = 1
-  depends_on       = [azurerm_role_assignment.deployer_secrets_officer]
+  value_wo_version = local.db_password_version
+
+  lifecycle {
+    replace_triggered_by = [azurerm_postgresql_flexible_server.main.id]
+  }
+  depends_on = [azurerm_role_assignment.deployer_secrets_officer]
 }
 
 ephemeral "random_password" "jwt" {
@@ -23,4 +27,18 @@ resource "azurerm_key_vault_secret" "jwt_secret" {
   value_wo         = ephemeral.random_password.jwt.result
   value_wo_version = 1
   depends_on       = [azurerm_role_assignment.deployer_secrets_officer]
+}
+
+resource "azurerm_key_vault_secret" "database_url" {
+  name         = "database-url"
+  key_vault_id = azurerm_key_vault.main.id
+
+  value_wo         = "postgres://${local.db_admin_login}:${ephemeral.random_password.db.result}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${local.db_name}?sslmode=verify-full"
+  value_wo_version = local.db_password_version
+
+  lifecycle {
+    replace_triggered_by = [azurerm_postgresql_flexible_server.main.id]
+  }
+
+  depends_on = [azurerm_role_assignment.deployer_secrets_officer]
 }

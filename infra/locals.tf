@@ -8,4 +8,5 @@ locals {
     environment = local.environment
     managed_by  = "terraform"
   }
+  db_password_version = 2
 }
