@@ -7,7 +7,11 @@ set -euo pipefail
 
 RG="rg-gatekeeper-state"            # hors du périmètre détruit (ADR-044)
 IDENTITY="id-gatekeeper-cd"
-REPO="omarhss-dev/prj-gatekeeper"   # casse exacte : le sujet est comparé tel quel
+# Sujet tel que GitHub le présente (journal d'azure/login) : propriétaire et dépôt
+# portent leur identifiant numérique. Un dépôt supprimé puis recréé sous le même nom
+# a un autre identifiant : il ne peut pas réutiliser ce credential.
+# Vérifier : curl -s https://api.github.com/repos/omarhss-dev/prj-gatekeeper | jq '{id, owner: .owner.id}'
+SUBJECT_REPO="omarhss-dev@267150971/prj-gatekeeper@1362823569"
 BRANCH="main"
 
 # Même région que le groupe, plutôt qu'un paramètre qui pourrait diverger
@@ -22,7 +26,7 @@ az identity federated-credential create \
   --name "github-$BRANCH" \
   --identity-name "$IDENTITY" -g "$RG" \
   --issuer "https://token.actions.githubusercontent.com" \
-  --subject "repo:$REPO:ref:refs/heads/$BRANCH" \
+  --subject "repo:$SUBJECT_REPO:ref:refs/heads/$BRANCH" \
   --audiences "api://AzureADTokenExchange" \
   -o none
 
