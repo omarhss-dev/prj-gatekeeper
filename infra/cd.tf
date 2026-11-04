@@ -38,6 +38,9 @@ resource "azurerm_role_definition" "deployer" {
       "Microsoft.App/jobs/write",
       "Microsoft.App/jobs/start/action",
       "Microsoft.App/jobs/executions/read",
+      # Trouver le registre et s'y connecter (az acr list, az acr login) :
+      # AcrPush donne le droit de pousser, pas celui de lire la ressource registre.
+      "Microsoft.ContainerRegistry/registries/read",
     ]
   }
 
