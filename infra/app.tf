@@ -164,3 +164,67 @@ resource "azurerm_container_app" "api" {
     azurerm_role_assignment.app_key_vault_secrets_user,
   ]
 }
+
+# Job de migration (ADR-021, ADR-040) : déclenché à la demande par la CD, avant la
+# mise à jour de l'application. Il tourne dans l'environnement, avec l'identité
+# de l'application : la CD ne voit jamais l'URL de la base.
+resource "azurerm_container_app_job" "migrate" {
+  name                         = "caj-gatekeeper-migrate-${local.environment}"
+  location                     = azurerm_resource_group.main.location
+  resource_group_name          = azurerm_resource_group.main.name
+  container_app_environment_id = jsondecode(azurerm_resource_group_template_deployment.cae.output_content).id.value
+  workload_profile_name        = "Consumption"
+
+  # Le premier démarrage d'une révision de l'API a dépassé 120 s, et l'image
+  # migrate est plus lourde (devDependencies). Large d'abord, resserré après mesure.
+  replica_timeout_in_seconds = 600
+  # Une erreur SQL échouerait pareil au second essai : un échec doit se voir tout de suite.
+  replica_retry_limit = 0
+
+  manual_trigger_config {
+    parallelism              = 1
+    replica_completion_count = 1
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.app.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.main.login_server
+    identity = azurerm_user_assigned_identity.app.id
+  }
+
+  secret {
+    name                = "database-url"
+    identity            = azurerm_user_assigned_identity.app.id
+    key_vault_secret_id = azurerm_key_vault_secret.database_url.versionless_id
+  }
+
+  template {
+    container {
+      name = "migrate"
+      # Remplacement, comme pour l'application (ADR-050) : la CD pose l'image réelle.
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      env {
+        name        = "DATABASE_URL"
+        secret_name = "database-url"
+      }
+    }
+  }
+
+  tags = local.tags
+
+  lifecycle {
+    ignore_changes = [template[0].container[0].image]
+  }
+
+  depends_on = [
+    azurerm_role_assignment.app_acr_pull,
+    azurerm_role_assignment.app_key_vault_secrets_user,
+  ]
+}
