@@ -31,6 +31,13 @@ resource "azurerm_role_definition" "deployer" {
       # Modifier une application de l'environnement exige ce droit sur l'environnement
       "Microsoft.App/managedEnvironments/read",
       "Microsoft.App/managedEnvironments/join/action",
+
+      # Job de migration : changer son image, le démarrer, suivre ses exécutions.
+      # Pas de jobs/listSecrets, pour la même raison que l'application (E2).
+      "Microsoft.App/jobs/read",
+      "Microsoft.App/jobs/write",
+      "Microsoft.App/jobs/start/action",
+      "Microsoft.App/jobs/executions/read",
     ]
   }
 
