@@ -102,6 +102,15 @@ jobs:
     needs: [verify, integration]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # id-token : uniquement pour les étapes de push, qui ne tournent que sur main.
+    # Les permissions d'un job remplacent celles du workflow : contents: read est répété.
+    permissions:
+      contents: read
+      id-token: write
+    # Les digests poussés, lus par le job deploy (commit 2)
+    outputs:
+      api-ref: ${{ steps.push.outputs.api-ref }}
+      migrate-ref: ${{ steps.push.outputs.migrate-ref }}
     steps:
       - name: Recuperer le code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -146,7 +155,35 @@ jobs:
 
       - name: Verifier l'utilisateur non-root
         run: test "$(docker compose exec -T api whoami)" = "node"
+      
+      - name: Connexion à Azure (OIDC, main uniquement)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Pousser les images testées (tag = SHA, sortie = digest)
+        id: push
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          RG: rg-gatekeeper-dev
+        run: |
+          ACR="$(az acr list -g "$RG" --query '[0].loginServer' -o tsv)"
+          test -n "$ACR"
+          az acr login -n "${ACR%%.*}"
+          TAG="${GITHUB_SHA::12}"
+          for name in api migrate; do
+            local_image="$(docker compose config --images | grep -- "-$name\$")"
+            docker tag "$local_image" "$ACR/gatekeeper-$name:$TAG"
+            docker push "$ACR/gatekeeper-$name:$TAG"
+            ref="$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' \
+              "$ACR/gatekeeper-$name:$TAG" | grep "^$ACR/gatekeeper-$name@")"
+            echo "$name : $ref"
+            echo "$name-ref=$ref" >> "$GITHUB_OUTPUT"
+          done
+                
       - name: Journaux en cas d'echec
         if: failure()
         run: |
