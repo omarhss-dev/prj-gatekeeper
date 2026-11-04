@@ -4,8 +4,12 @@ import { Pool } from 'pg';
 export function createPool(config, logger) {
   const pool = new Pool({
     connectionString: config.DATABASE_URL,
-    // Par INSTANCE. 4 réplicas × 10 = 40 < ~50 connexions du B1ms.
-    // Ce chiffre et le max_replicas de Terraform ne vont pas l'un sans l'autre.
+    // Par INSTANCE (réplica). Budget du B1ms : 35 connexions pour les rôles
+    // ordinaires (50 moins 15 réservées). Invariant : max_replicas (2, infra/app.tf)
+    // × max + 1 (job de migration) ≤ 30, soit 21. Ce chiffre et max_replicas
+    // ne vont pas l'un sans l'autre (addendum d'ADR-007).
+    // Bascule de révision mesurée (E3) : pic de 13 sous 20 requêtes parallèles.
+    // Pire cas théorique : 2 révisions × 2 × 10 + 1 = 41, non atteint, non réfuté.
     max: 10,
     idleTimeoutMillis: 30_000,
     // Défaut pg : 0 = attente INFINIE d'un slot libre. Un pool saturé
