@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   pull_request:
@@ -216,3 +216,91 @@ jobs:
       - name: Valider
         run: terraform validate
         working-directory: infra
+  
+  deploy:
+    # Jamais sur une PR : le credential fédéré n'accepte que main (et le ruleset ne
+    # doit pas exiger ce check, sinon toute PR attendrait un job qui ne tourne pas).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [image, terraform]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-gatekeeper-dev
+      APP: ca-gatekeeper-api-dev
+      JOB: caj-gatekeeper-migrate-dev
+      API_REF: ${{ needs.image.outputs.api-ref }}
+      MIGRATE_REF: ${{ needs.image.outputs.migrate-ref }}
+    steps:
+      - name: Connexion à Azure (OIDC)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Vérifier les entrées
+        run: |
+          test -n "$API_REF" && test -n "$MIGRATE_REF"
+          echo "api : $API_REF"
+          echo "migrate : $MIGRATE_REF"
+          az version -o json | jq -c '{cli: ."azure-cli", extensions}'
+
+      - name: Noter l'image en place (retour manuel)
+        run: |
+          PREV="$(az containerapp show -n "$APP" -g "$RG" \
+            --query 'properties.template.containers[0].image' -o tsv)"
+          test -n "$PREV"
+          {
+            echo "## Déploiement"
+            echo "- Image avant : \`$PREV\`"
+            echo "- Image déployée : \`$API_REF\`"
+            echo ""
+            echo "Retour manuel si besoin (ADR rollback manuel) :"
+            echo '```bash'
+            echo "az containerapp update -n $APP -g $RG --image \"$PREV\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Migrations (job Container Apps, avant la mise à jour)
+        run: |
+          az containerapp job update -n "$JOB" -g "$RG" --image "$MIGRATE_REF" -o none
+          EXEC="$(az containerapp job start -n "$JOB" -g "$RG" --query name -o tsv)"
+          test -n "$EXEC"
+          echo "Exécution : $EXEC"
+          deadline=$((SECONDS + 360))   # replica_timeout (300 s) + marge
+          while :; do
+            STATUS="$(az containerapp job execution show -n "$JOB" -g "$RG" \
+              --job-execution-name "$EXEC" --query properties.status -o tsv)"
+            echo "$(date -u +%T) $STATUS"
+            [ "$STATUS" = "Succeeded" ] && break
+            [ "$STATUS" = "Failed" ] && { echo "::error::Migration en échec : application non touchée"; exit 1; }
+            [ "$SECONDS" -lt "$deadline" ] || { echo "::error::Migration sans résultat après 360 s"; exit 1; }
+            sleep 10
+          done
+
+      - name: Mettre à jour l'application et attendre la révision
+        run: |
+          az containerapp update -n "$APP" -g "$RG" --image "$API_REF" -o none
+          LATEST="$(az containerapp show -n "$APP" -g "$RG" --query properties.latestRevisionName -o tsv)"
+          test -n "$LATEST"
+          echo "Révision attendue : $LATEST"
+          deadline=$((SECONDS + 300))
+          until [ "$(az containerapp show -n "$APP" -g "$RG" \
+            --query properties.latestReadyRevisionName -o tsv)" = "$LATEST" ]; do
+            [ "$SECONDS" -lt "$deadline" ] || {
+              echo "::error::$LATEST pas prête après 300 s ; l'ancienne révision sert toujours"; exit 1; }
+            sleep 10
+          done
+          echo "$(date -u +%T) $LATEST prête"
+          echo "- Révision prête : \`$LATEST\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke test (route métier)
+        run: |
+          FQDN="$(az containerapp show -n "$APP" -g "$RG" \
+            --query properties.configuration.ingress.fqdn -o tsv)"
+          curl --fail --silent --show-error --max-time 120 "https://$FQDN/health/ready"
+          curl --fail --silent --show-error --max-time 120 "https://$FQDN/api/v1/events" | grep -q '"items"'
+
